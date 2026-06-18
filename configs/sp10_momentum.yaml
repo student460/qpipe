@@ -1,0 +1,32 @@
+# Multi-factor momentum rotation over the top-10 S&P 500 names by market cap.
+# NOTE: this is TODAY'S top 10 held fixed over history — that is survivorship/
+# lookahead bias (NVDA wasn't a mega-cap in 2016). Backtest results will be
+# flattered; treat them as optimistic. A point-in-time universe is the fix (TODO).
+# Edit the list as you like; ingest the symbols first (Data tab shows gaps).
+strategy: qpipe.strategies.etf_rotation:EtfRotation
+config_class: qpipe.strategies.etf_rotation:EtfRotationConfig
+symbol: AAPL            # primary (drives the rebalance clock; also traded)
+venue: XNAS
+bar_spec: 1-DAY-LAST
+account_type: CASH
+fees: none              # Alpaca: commission-free
+universe: [MSFT, NVDA, GOOGL, AMZN, META, AVGO, TSLA, LLY, JPM]
+fixed:
+  rebalance_frequency: weekly
+  week_momentum: 5
+  short_momentum: 21
+  medium_momentum: 63
+  long_momentum: 126
+  trend_momentum: 252
+  volume_lookback: 21
+space:
+  num_positions: {type: int, low: 1, high: 5}
+  week_weight: {type: float, low: 0.0, high: 0.4, step: 0.05}
+  short_weight: {type: float, low: 0.0, high: 0.4, step: 0.05}
+  medium_weight: {type: float, low: 0.0, high: 0.4, step: 0.05}
+  long_weight: {type: float, low: 0.0, high: 0.4, step: 0.05}
+  volume_min: {type: float, low: 0.5, high: 1.0, step: 0.1}
+  volume_max: {type: float, low: 1.0, high: 1.5, step: 0.1}
+constraints:
+  - "week_weight + short_weight + medium_weight + long_weight <= 1.0"
+objective: sharpe

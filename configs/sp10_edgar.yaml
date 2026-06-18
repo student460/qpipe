@@ -1,0 +1,36 @@
+# Momentum rotation over the DYNAMIC point-in-time top-10 by market cap.
+# Market cap is computed at every rebalance from SEC EDGAR share counts
+# (latest filing on or before that date) x last close — no static membership
+# file, identical logic in backtest and live trading.
+#
+# First: qpipe data-edgar --symbols AAPL,MSFT,GOOGL,AMZN,META,XOM,JNJ,GE,WFC,JPM,BAC,V,UNH,PG,WMT,TSLA,NVDA,LLY,AVGO --out data/shares.json
+# `universe` = candidate pool (anything that might rank top-10); top_n picks live.
+strategy: qpipe.strategies.etf_rotation:EtfRotation
+config_class: qpipe.strategies.etf_rotation:EtfRotationConfig
+symbol: AAPL
+venue: XNAS
+bar_spec: 1-DAY-LAST
+account_type: CASH
+fees: none
+universe: [MSFT, GOOGL, AMZN, META, XOM, JNJ, GE, WFC, JPM, BAC, V, UNH, PG, WMT, TSLA, NVDA, LLY, AVGO]
+fixed:
+  rebalance_frequency: weekly
+  week_momentum: 5
+  short_momentum: 21
+  medium_momentum: 63
+  long_momentum: 126
+  trend_momentum: 252
+  volume_lookback: 21
+  shares_file: data/shares.json
+  universe_top_n: 10
+space:
+  num_positions: {type: int, low: 1, high: 5}
+  week_weight: {type: float, low: 0.0, high: 0.4, step: 0.05}
+  short_weight: {type: float, low: 0.0, high: 0.4, step: 0.05}
+  medium_weight: {type: float, low: 0.0, high: 0.4, step: 0.05}
+  long_weight: {type: float, low: 0.0, high: 0.4, step: 0.05}
+  volume_min: {type: float, low: 0.5, high: 1.0, step: 0.1}
+  volume_max: {type: float, low: 1.0, high: 1.5, step: 0.1}
+constraints:
+  - "week_weight + short_weight + medium_weight + long_weight <= 1.0"
+objective: sharpe

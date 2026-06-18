@@ -1,0 +1,27 @@
+# --- secrets (never commit) ---
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+.qpipe.json
+
+# --- python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# --- qpipe data / outputs (large, local, regenerable) ---
+catalog/
+runs/
+logs/
+questdb-data/
+
+# --- os / editor ---
+.DS_Store
+.idea/
+.vscode/

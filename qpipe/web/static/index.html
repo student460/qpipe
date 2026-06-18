@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>qpipe — quant pipeline</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--bg:#101113;--panel:#161719;--card:#18191c;--panel2:#26282d;--border:#232428;--text:#ededef;--dim:#7e808a;--accent:#5b5bd6;--accent2:#7c7ce8;--green:#52c98a;--red:#e5685f;--mono:ui-monospace,"SF Mono",Menlo,monospace}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.55 -apple-system,"Inter",Segoe UI,sans-serif;-webkit-font-smoothing:antialiased}
+#layout{display:flex;min-height:100vh}
+aside{width:190px;background:var(--panel);border-right:1px solid var(--border);padding:18px 10px;position:sticky;top:0;height:100vh;flex-shrink:0;display:flex;flex-direction:column}
+aside .logo{font-size:14px;font-weight:600;letter-spacing:-.01em;padding:0 10px 18px;color:var(--text)}
+aside .logo span{color:var(--accent2)}
+nav{display:flex;flex-direction:column;gap:2px}
+nav button{display:flex;align-items:center;gap:9px;background:none;border:none;color:var(--dim);padding:8px 10px;cursor:pointer;font-size:13px;border-radius:8px;text-align:left;width:100%;transition:background .12s,color .12s}
+nav button:hover{color:var(--text);background:var(--panel2)}
+nav button.active{background:var(--panel2);color:var(--text);font-weight:500}
+aside .bottom{margin-top:auto;padding:0 4px}
+#content{flex:1;min-width:0}
+header{display:flex;align-items:center;gap:14px;padding:13px 26px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:40;background:rgba(16,17,19,.88);backdrop-filter:blur(8px)}
+#updateBanner{display:none;align-items:center;gap:6px;font-size:12.5px;font-weight:500;color:var(--accent2);background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:5px 11px;text-decoration:none;cursor:pointer;transition:background .15s,border-color .15s}
+#updateBanner:hover{background:var(--card);border-color:var(--accent)}
+#updateBanner.show{display:inline-flex}
+main{padding:26px;max-width:1100px}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:20px 22px;margin-bottom:18px}
+.panel h2{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);margin:0 0 14px;font-weight:500}
+label{display:block;font-size:12px;color:var(--dim);margin-bottom:5px}
+input,select,textarea{background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 11px;font-size:13px;width:100%;transition:border-color .15s}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
+textarea{font-family:var(--mono);font-size:12.5px;min-height:420px;white-space:pre;tab-size:4;line-height:1.6}
+.row{display:flex;gap:14px;flex-wrap:wrap}.row>div{flex:1;min-width:110px}
+button.primary{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:13.5px;font-weight:500;cursor:pointer;transition:background .15s}
+button.primary:hover{background:#6a6ae0}button.primary:disabled{opacity:.4}
+button.ghost{background:transparent;color:var(--text);border:1px solid var(--border);border-radius:8px;padding:7px 14px;cursor:pointer;font-size:13px;transition:background .15s,border-color .15s}
+button.ghost:hover{background:var(--panel2);border-color:#2e3036}
+button.danger{color:var(--red)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{color:var(--dim);text-align:left;font-weight:500;font-size:12px;padding:8px;border-bottom:1px solid var(--border)}
+td{padding:8px;border-bottom:1px solid var(--border)}
+tr:last-child td{border-bottom:none}
+td input,td select{padding:5px 8px}
+.metrics{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.metric{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.metric .v{font-size:19px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.metric .k{font-size:11px;color:var(--dim);margin-top:2px}
+.pos{color:var(--green)}.neg{color:var(--red)}
+.progress{height:6px;background:var(--panel2);border-radius:3px;overflow:hidden}
+.progress>div{height:100%;background:var(--accent);transition:width .3s;border-radius:3px}
+.muted{color:var(--dim);font-size:12.5px}
+.badge{display:inline-block;padding:3px 10px;border-radius:99px;font-size:11px;background:var(--panel2);color:var(--text)}
+.badge.pos{background:rgba(82,201,138,.12);color:var(--green)}
+code{font-family:var(--mono);font-size:12px;background:var(--panel2);padding:1px 6px;border-radius:5px}
+td.trunc{max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+td.trunc code{background:none;padding:0}
+.flex{display:flex;align-items:center;gap:10px}.spacer{flex:1}
+#toast{position:fixed;bottom:20px;right:20px;background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:11px 18px;border-radius:10px;display:none;z-index:60;font-size:13px;box-shadow:0 6px 20px rgba(0,0,0,.4)}
+#agentPanel{position:fixed;top:0;right:-440px;width:410px;height:100vh;background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column;transition:right .25s;z-index:50;box-shadow:-12px 0 32px rgba(0,0,0,.35)}
+#agentPanel.open{right:0}
+#agentMsgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
+.amsg{padding:9px 14px;border-radius:12px;font-size:13px;white-space:pre-wrap;max-width:92%;line-height:1.55}
+.amsg.user{background:var(--accent);color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
+.amsg.assistant{background:var(--panel2);align-self:flex-start;border-bottom-left-radius:4px}
+.amsg.tool{background:none;border:1px dashed var(--border);color:var(--dim);font-family:var(--mono);font-size:11px;align-self:flex-start}
+.amsg.error{background:none;border:1px solid var(--red);color:var(--red);align-self:flex-start}
+#agentInput{display:flex;gap:8px;padding:14px;border-top:1px solid var(--border)}
+#agentSettings{padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px 20px;cursor:pointer;transition:border-color .15s,transform .12s}
+.card:hover{border-color:#34363d;transform:translateY(-1px)}
+.card.new{border-style:dashed;background:transparent}
+.card.new:hover{border-color:var(--accent);color:var(--text)}
+</style>
+</head>
+<body>
+<div id="layout">
+<aside>
+  <div class="logo">◆ q<span>pipe</span></div>
+  <nav id="nav"></nav>
+  <div class="bottom">
+    <button class="ghost" style="width:100%" onclick="toggleAgent()">✳ Assistant</button>
+  </div>
+</aside>
+<div id="content">
+<header>
+  <span class="muted" id="pageTitle"></span>
+  <div class="spacer"></div>
+  <a id="updateBanner" target="_blank" rel="noopener" title="A newer commit is on GitHub. Pull it to update."></a>
+</header>
+<main id="main"></main>
+</div>
+</div>
+<div id="agentPanel">
+  <div class="flex" style="padding:12px 14px;border-bottom:1px solid var(--border)">
+    <b>Assistant</b><span class="badge" id="agentBusy" style="display:none">working…</span><div class="spacer"></div>
+    <button class="ghost" onclick="$('#agentSettings').style.display=$('#agentSettings').style.display==='none'?'block':'none'">⚙</button>
+    <button class="ghost" onclick="newAgentSession()">New chat</button>
+    <button class="ghost" onclick="toggleAgent()">✕</button>
+  </div>
+  <div id="agentSettings" style="display:none">
+    <div class="row">
+      <div><label>Provider</label><select id="llmProv"><option value="anthropic">Anthropic (Claude)</option><option value="openrouter">OpenRouter</option><option value="local">Local / OpenAI-compatible</option></select></div>
+      <div><label>Model (blank = default)</label><input id="llmModel" placeholder="claude-sonnet-4-6"></div>
+    </div>
+    <div class="row" id="provFields"></div>
+    <button class="ghost" style="margin-top:8px" onclick="saveLLM()">Save</button>
+    <p class="muted">Local: Ollama (http://localhost:11434/v1) or LM Studio (http://localhost:1234/v1). Note: the agent relies on tool-calling — small local models may struggle with it.</p>
+  </div>
+  <div id="agentMsgs"><div class="amsg assistant">Hi — I can read/edit your strategies and configs, run backtests, launch walk-forward optimizations and babysit them while they run. What are we working on?</div></div>
+  <div id="agentInput">
+    <input id="agentText" placeholder="e.g. optimize sp10_pit on 6m windows and report OOS" onkeydown="if(event.key==='Enter')sendAgent()">
+    <button class="primary" onclick="sendAgent()">Send</button>
+  </div>
+</div>
+<div id="toast"></div>
+<script>
+const $=q=>document.querySelector(q), api=async(m,u,b)=>{const r=await fetch(u,{method:m,headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});if(!r.ok)throw new Error((await r.json()).detail||r.statusText);return r.json()};
+const toast=m=>{const t=$('#toast');t.textContent=m;t.style.display='block';setTimeout(()=>t.style.display='none',2500)};
+const fmt=(v,d=3)=>v==null?'–':(typeof v==='number'?v.toFixed(d):v);
+const pct=v=>v==null?'–':(v*100).toFixed(1)+'%';
+let CONFIG=null, CONFIG_NAME=null, CHART=null;
+
+const PROJ_TABS={backtest:'Backtest',optimize:'Optimize',wf:'Walk-forward',paper:'Paper',strategy:'Strategy',params:'Parameters',runs:'Runs'};
+const GLOBAL_TABS={home:'Projects',data:'Data',logs:'Logs',settings:'Settings'};
+const TABS={...GLOBAL_TABS,...PROJ_TABS};
+let TAB='home', PROJECT=null, CONFIGS=[];
+const ICONS={home:'▣',data:'▦',strategy:'⌘',params:'≔',backtest:'∿',optimize:'◎',wf:'⇶',paper:'▶',runs:'↻',logs:'≣',settings:'⚙'};
+let SETTINGS={};
+const cfgTip=t=>`<span class="muted" title="${t}" style="cursor:help;margin-left:4px">ⓘ</span>`;
+const RECENT_JOBS=[];
+let PENDING={};  // params handed between flow steps (WF -> backtest -> paper)
+const trackJob=(kind,job_id,extra)=>{RECENT_JOBS.push({kind,job_id,at:new Date().toISOString().slice(0,19),...(extra||{})});if(RECENT_JOBS.length>20)RECENT_JOBS.shift()};
+function uiContext(){
+  const ctx={project:PROJECT,tab:TAB,config:CONFIG_NAME,recent_jobs_this_session:RECENT_JOBS.slice(-8)};
+  try{
+    if(TAB==='wf'&&$('#wfIs'))ctx.form=wfBody();
+    else if(TAB==='optimize'&&$('#oSeg'))ctx.form={segment_months:+$('#oSeg').value,windows:+$('#oWin').value,trials:+$('#oTri').value,warmup_days:+$('#oWarm').value};
+    else if(TAB==='backtest'&&$('#btParams'))ctx.form={params:$('#btParams').value,start:$('#btStart').value,end:$('#btEnd').value,balance:+$('#btBal').value};
+    else if(TAB==='paper'&&$('#ppMode'))ctx.form={mode:$('#ppMode').value,horizon_years:+$('#ppHor').value};
+    if(CONFIG)ctx.config_summary={strategy:CONFIG.strategy,symbol:CONFIG.symbol,universe_size:(CONFIG.universe||[]).length,objective:CONFIG.objective,constraints:CONFIG.constraints||[]};
+  }catch(e){}
+  return ctx;
+}
+const btn=(k,v)=>`<button class="${k===TAB?'active':''}" onclick="go('${k}')"><span style="width:16px;display:inline-block;text-align:center;opacity:.7">${ICONS[k]||''}</span>${v}</button>`;
+function nav(){
+  let h='';
+  if(PROJECT){
+    h+=`<button onclick="closeProject()"><span style="width:16px;display:inline-block;text-align:center;opacity:.7">←</span>Projects</button>`;
+    h+=`<div style="padding:12px 10px 6px;font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${PROJECT}</div>`;
+    h+=Object.entries(PROJ_TABS).map(([k,v])=>btn(k,v)).join('');
+    h+=`<div style="height:1px;background:var(--border);margin:12px 6px"></div>`;
+    h+=[['data','Data'],['logs','Logs'],['settings','Settings']].map(([k,v])=>btn(k,v)).join('');
+  }else{
+    h+=Object.entries(GLOBAL_TABS).map(([k,v])=>btn(k,v)).join('');
+  }
+  $('#nav').innerHTML=h;
+  const pt=$('#pageTitle');if(pt)pt.textContent=PROJECT?`${PROJECT} · ${TABS[TAB]}`:TABS[TAB];
+}
+function go(t){TAB=t;nav();render()}
+async function openProject(n){PROJECT=n;await loadConfig(n);TAB='backtest';nav();render()}
+function closeProject(){PROJECT=null;TAB='home';nav();render()}
+
+async function loadConfigs(){CONFIGS=await api('GET','/api/configs')}
+async function loadConfig(n){const c=await api('GET','/api/configs/'+n);CONFIG=c.parsed;CONFIG_NAME=n}
+
+/* ---------- YAML builder for our schema ---------- */
+function toYaml(c){
+  let y=`strategy: ${c.strategy}\nconfig_class: ${c.config_class}\nsymbol: ${c.symbol}\nvenue: ${c.venue||'XNAS'}\nbar_spec: ${c.bar_spec||'1-DAY-LAST'}\naccount_type: ${c.account_type||'MARGIN'}\nfees: ${c.fees||'none'}\n`;
+  if(c.universe&&c.universe.length)y+=`universe: [${c.universe.join(', ')}]\n`;
+  y+='fixed:\n';for(const[k,v]of Object.entries(c.fixed||{}))y+=`  ${k}: ${v}\n`;
+  y+='space:\n';for(const[k,v]of Object.entries(c.space||{})){
+    let s=`{type: ${v.type}`;if(v.type==='categorical')s+=`, choices: [${v.choices.join(', ')}]`;
+    else{s+=`, low: ${v.low}, high: ${v.high}`;if(v.step!=null&&v.step!=='')s+=`, step: ${v.step}`;}
+    y+=`  ${k}: ${s}}\n`;}
+  if(c.constraints&&c.constraints.length){y+='constraints:\n';for(const x of c.constraints)y+=`  - "${x}"\n`;}
+  y+=`objective: ${c.objective||'sharpe'}\n`;return y;
+}
+async function saveConfig(){await api('PUT','/api/configs/'+CONFIG_NAME,{yaml:toYaml(CONFIG)});toast('Config saved')}
+
+/* ---------- render ---------- */
+async function render(){
+  try{await({home:rHome,data:rData,strategy:rStrategy,params:rParams,backtest:rBacktest,optimize:rOptimize,wf:rWF,paper:rPaper,runs:rRuns,logs:rLogs,settings:rSettings})[TAB]()}
+  catch(e){$('#main').innerHTML=`<div class="panel"><h2>Error</h2><p class="neg">${e.message}</p></div>`}
+}
+
+/* Settings tab — central app configuration (~/.qpipe.json) */
+async function rSettings(){
+  const st=await api('GET','/api/settings');SETTINGS=st;
+  $('#main').innerHTML=`
+  <div class="panel"><h2>Data &amp; fetching</h2>
+    <div class="row">
+      <div><label>Auto-fetch missing data</label><select id="stAuto"><option value="true" ${st.auto_fetch?'selected':''}>enabled</option><option value="false" ${!st.auto_fetch?'selected':''}>disabled</option></select></div>
+      <div><label>History start (auto-fetch from)</label><input id="stStart" value="${st.autofetch_start}" placeholder="2015-01-01"></div>
+      <div><label>EDGAR contact (SEC asks for one)</label><input id="stEdgar" value="${st.edgar_contact}" placeholder="you@email.com"></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <div><label>Alpaca API key ${st.alpaca_key_set?'<span class="badge pos">saved</span>':''}</label><input id="stAk" type="password" placeholder="${st.alpaca_key_set?'••••••':'PK…'}"></div>
+      <div><label>Alpaca secret</label><input id="stAs" type="password" placeholder="${st.alpaca_key_set?'••••••':''}"></div>
+    </div>
+    <p class="muted">Missing daily bars auto-fetch before every backtest/optimization: Alpaca first (needs keys), yfinance fallback (no keys). History start governs how far back new symbols are pulled.</p></div>
+  <div class="panel"><h2>Compute defaults</h2>
+    <div class="row">
+      <div><label>Walk-forward grid cap (combos)</label><input id="stCap" type="number" value="${st.max_combos}"></div>
+      <div><label>Default parallel jobs</label><input id="stJobs" type="number" value="${st.default_jobs}"></div>
+      <div><label>Default warm-up days</label><input id="stWarm" type="number" value="${st.default_warmup}"></div>
+    </div>
+    <p class="muted">The grid cap refuses runaway grids (the preview's time estimate is the real cost guide). Jobs/warm-up prefill the Optimize and Walk-forward forms — warm-up must cover your longest indicator lookback in calendar days (252 trading days ≈ 380).</p></div>
+  <div class="panel"><h2>Assistant model</h2>
+    <div class="row">
+      <div><label>Provider</label><select id="stProv"><option value="anthropic" ${st.llm_provider==='anthropic'?'selected':''}>Anthropic (Claude)</option><option value="openrouter" ${st.llm_provider==='openrouter'?'selected':''}>OpenRouter</option><option value="local" ${st.llm_provider==='local'?'selected':''}>Local / OpenAI-compatible</option></select></div>
+      <div><label>Model (blank = default)</label><input id="stModel" value="${st.llm_model}" placeholder="claude-sonnet-4-6"></div>
+      <div><label>API key ${st.anthropic_key_set||st.openrouter_key_set?'<span class="badge pos">saved</span>':''}</label><input id="stLlmKey" type="password" placeholder="for the selected provider"></div>
+      <div><label>Local base URL</label><input id="stBase" value="${st.local_base_url}"></div>
+    </div>
+    <p class="muted">Also editable from the ✳ Assistant panel's ⚙. Local = Ollama/LM Studio; small local models may fumble tool calls.</p></div>
+  <div class="flex"><button class="primary" onclick="saveSettings()">Save settings</button>
+    <span class="muted">stored in <code>~/.qpipe.json</code> — never inside the shareable project folder</span></div>`;
+}
+async function saveSettings(){
+  const body={auto_fetch:$('#stAuto').value==='true',autofetch_start:$('#stStart').value.trim()||null,
+    edgar_contact:$('#stEdgar').value.trim()||null,max_combos:+$('#stCap').value||null,
+    default_jobs:+$('#stJobs').value||null,default_warmup:+$('#stWarm').value||null,
+    llm_provider:$('#stProv').value,llm_model:$('#stModel').value.trim()||null,
+    local_base_url:$('#stBase').value.trim()||null};
+  const ak=$('#stAk').value.trim(),as=$('#stAs').value.trim(),lk=$('#stLlmKey').value.trim();
+  if(ak)body.alpaca_key=ak; if(as)body.alpaca_secret=as;
+  if(lk){if(body.llm_provider==='anthropic')body.anthropic_key=lk;
+    else if(body.llm_provider==='openrouter')body.openrouter_key=lk;else body.local_key=lk;}
+  await api('PUT','/api/settings',body);SETTINGS=await api('GET','/api/settings');toast('Settings saved');
+}
+
+/* Home: project grid */
+async function rHome(){
+  await loadConfigs();
+  const[bts,runs]=await Promise.all([api('GET','/api/backtests'),api('GET','/api/runs')]);
+  const cards=await Promise.all(CONFIGS.map(async n=>{
+    let c={};try{c=(await api('GET','/api/configs/'+n)).parsed}catch(e){}
+    const myBts=bts.filter(b=>b.config===n);
+    const last=myBts[0];
+    const sym=c.symbol||'?';
+    const nRuns=runs.filter(r=>r.startsWith(sym+'_')).length;
+    const uni=(c.universe||[]).length;
+    return `<div class="card" onclick="openProject('${n}')">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="font-size:15px;font-weight:600">${n}</span>
+        <span class="badge">${sym}${uni?` +${uni}`:''}</span>
+      </div>
+      <div class="muted" style="margin-bottom:14px">${(c.strategy||'').split(':').pop()||'no strategy'} · ${c.bar_spec||''} · ${c.objective||'sharpe'}</div>
+      <div style="display:flex;gap:22px">
+        <div><div class="muted" style="font-size:10.5px">Last Sharpe</div><div class="${last&&last.sharpe>0?'pos':last?'neg':''}" style="font-size:17px;font-weight:600">${last?fmt(last.sharpe,2):'–'}</div></div>
+        <div><div class="muted" style="font-size:10.5px">Max DD</div><div style="font-size:17px;font-weight:600">${last?pct(last.max_drawdown):'–'}</div></div>
+        <div><div class="muted" style="font-size:10.5px">Backtests</div><div style="font-size:17px;font-weight:600">${myBts.length}</div></div>
+        <div><div class="muted" style="font-size:10.5px">Optimizations</div><div style="font-size:17px;font-weight:600">${nRuns}</div></div>
+      </div></div>`;
+  }));
+  $('#main').innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:14px">
+    ${cards.join('')}
+    <div class="card new" onclick="newProject()">
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;min-height:120px;color:var(--dim)">
+        <div style="font-size:26px;line-height:1">+</div><div style="font-size:13px;margin-top:6px">New project</div>
+      </div></div></div>`;
+}
+async function newProject(){
+  const n=prompt('Project name (becomes configs/<name>.yaml):');
+  if(!n)return;
+  const name=n.trim().toLowerCase().replace(/[^a-z0-9_]+/g,'_');
+  const starter=`strategy: qpipe.strategies.sma_cross:SMACross
+config_class: qpipe.strategies.sma_cross:SMACrossConfig
+symbol: SPY
+venue: XNAS
+bar_spec: 1-DAY-LAST
+account_type: MARGIN
+fees: none
+fixed:
+  trade_size: 100
+space:
+  fast_period: {type: int, low: 5, high: 50}
+  slow_period: {type: int, low: 20, high: 200}
+constraints:
+  - "fast_period < slow_period"
+objective: sharpe
+`;
+  await api('PUT','/api/configs/'+name,{yaml:starter});
+  openProject(name);
+}
+
+/* Data tab */
+async function rData(){
+  const[d,st]=await Promise.all([api('GET','/api/data'),api('GET','/api/settings')]);
+  const needed=CONFIG?[CONFIG.symbol,...(CONFIG.universe||[])]:[];
+  const have=new Set(d.items.map(i=>i.symbol));
+  const missing=needed.filter(s=>!have.has(s));
+  $('#main').innerHTML=`<div class="panel"><h2>Catalog — <code>${d.catalog}</code> ${cfgTip('Auto-fetch behavior, history start date, and API keys are in the Settings tab.')}</h2>
+    ${missing.length?`<p class="neg">⚠ Config <b>${CONFIG_NAME}</b> needs symbols not in the catalog: <code>${missing.join(', ')}</code></p>
+      <button class="primary" id="fetchBtn" onclick="fetchMissing()">Fetch missing data (Alpaca → yfinance)</button>
+      <span class="muted" id="fetchStatus"></span>`
+      :(CONFIG?`<p class="pos">✓ All symbols for config <b>${CONFIG_NAME}</b> are present. New strategies that reference symbols you don't have will auto-fetch on first run.</p>`:'')}
+    ${d.items.length?`<table><tr><th>Symbol</th><th>Bar type</th><th>Bars</th><th>From</th><th>To</th></tr>
+      ${d.items.map(i=>i.error?`<tr><td>${i.symbol}</td><td colspan=4 class="neg">${i.error}</td></tr>`
+        :`<tr><td><b>${i.symbol}</b></td><td class="muted"><code>${i.bar_type}</code></td><td>${i.bars}</td><td>${i.start}</td><td>${i.end}</td></tr>`).join('')}</table>`
+      :'<p class="muted">Catalog is empty.</p>'}
+    <p class="muted" style="margin-top:14px">Ingest data from a terminal:<br>
+    <code>qpipe data-alpaca --symbols SPY,QQQ,IWM,TLT,GLD,VNQ,EFA,EEM,VTI,VOO,IBIT --start 2016-06-01</code> (free, needs ALPACA_API_KEY/SECRET)<br>
+    <code>qpipe data-lean --lean-dir ~/lean/data --symbols SPY,QQQ --resolution daily</code> (QC data via <code>lean data download</code>)<br>
+    <code>qpipe data-synthetic --symbol TEST</code> (fake data for testing)</p></div>
+  <div class="panel"><h2>API keys ${st.alpaca_key_set?'<span class="badge pos">alpaca configured</span>':'<span class="badge">alpaca not set</span>'}</h2>
+    <div class="row">
+      <div><label>Alpaca API key</label><input id="akey" placeholder="${st.alpaca_key_set?'•••••• (saved)':'PK…'}"></div>
+      <div><label>Alpaca secret</label><input id="asec" type="password" placeholder="${st.alpaca_key_set?'•••••• (saved)':''}"></div>
+      <div style="display:flex;align-items:flex-end"><button class="ghost" onclick="saveKeys()">Save keys</button></div>
+    </div>
+    <p class="muted">Stored in <code>~/.qpipe.json</code> (owner-only file). Used for auto-fetching daily bars when a strategy needs a symbol the catalog doesn't have; falls back to yfinance (no key needed) if Alpaca is unavailable.</p></div>`;
+}
+async function saveKeys(){
+  const k=$('#akey').value.trim(),s=$('#asec').value.trim();
+  if(!k||!s)return toast('enter both key and secret');
+  await api('PUT','/api/settings',{alpaca_key:k,alpaca_secret:s});toast('Keys saved');render();
+}
+async function fetchMissing(){
+  $('#fetchBtn').disabled=true;$('#fetchStatus').textContent='fetching… (can take a minute)';
+  try{
+    const r=await api('POST','/api/data/fetch',{config:CONFIG_NAME});
+    const fails=Object.entries(r).filter(([k,v])=>String(v).startsWith('FAILED'));
+    toast(fails.length?`done with ${fails.length} failure(s)`:'all symbols fetched ✓');
+    render();
+  }catch(e){toast('✗ '+e.message);$('#fetchBtn').disabled=false}
+}
+
+/* Strategy tab */
+async function rStrategy(){
+  const names=await api('GET','/api/strategies');
+  $('#main').innerHTML=`<div class="panel"><div class="flex">
+    <h2 style="margin:0">Strategy code</h2><div class="spacer"></div>
+    <select id="stratSel" style="width:200px">${names.map(n=>`<option>${n}</option>`).join('')}</select>
+    <input id="newName" placeholder="new_strategy_name" style="width:180px">
+    <button class="ghost" onclick="newStrategy()">New</button>
+    <button class="primary" onclick="saveStrategy()">Save</button>
+    <button class="ghost" onclick="go('wf')" title="Next step: grid-search params over rolling IS/OOS windows">Walk-forward optimize →</button></div>
+    <p class="muted">Write NautilusTrader strategies (see sma_cross / etf_rotation as templates). Declare <code>trade_start_ns: int = 0</code> in the config and skip trading before it — required for leak-free warm-up. After saving, reference it in a config as <code>qpipe.strategies.&lt;name&gt;:&lt;ClassName&gt;</code>.</p>
+    <textarea id="code" spellcheck="false"></textarea></div>`;
+  const load=async n=>{$('#code').value=(await api('GET','/api/strategies/'+n)).code};
+  $('#stratSel').onchange=e=>load(e.target.value);
+  // default to the strategy referenced by the active config, e.g. "qpipe.strategies.sma_cross:SMACross"
+  let pick=names[0];
+  if(CONFIG&&CONFIG.strategy){const m=CONFIG.strategy.match(/strategies\.([\w]+):/);if(m&&names.includes(m[1]))pick=m[1];}
+  if(pick){$('#stratSel').value=pick;await load(pick);}
+}
+async function saveStrategy(){try{await api('PUT','/api/strategies/'+$('#stratSel').value,{code:$('#code').value});toast('Saved ✓ (syntax OK)')}catch(e){toast('✗ '+e.message)}}
+function newStrategy(){const n=$('#newName').value.trim();if(!n)return toast('enter a name');const o=document.createElement('option');o.textContent=n;$('#stratSel').appendChild(o);$('#stratSel').value=n;$('#code').value='# new strategy\n'}
+
+/* Parameters tab — QC-optimization-wizard style */
+function rParams(){
+  if(!CONFIG)return $('#main').innerHTML='<p class="muted">No config selected.</p>';
+  const c=CONFIG, rows=Object.entries(c.space||{}).map(([k,v],i)=>`
+    <tr><td><input value="${k}" onchange="renameParam('${k}',this.value)"></td>
+    <td><select onchange="setP('${k}','type',this.value)"><option ${v.type==='int'?'selected':''}>int</option><option ${v.type==='float'?'selected':''}>float</option></select></td>
+    <td><input type="number" step="any" value="${v.low??''}" onchange="setP('${k}','low',+this.value)"></td>
+    <td><input type="number" step="any" value="${v.high??''}" onchange="setP('${k}','high',+this.value)"></td>
+    <td><input type="number" step="any" value="${v.step??''}" placeholder="auto" onchange="setP('${k}','step',this.value===''?null:+this.value)"></td>
+    <td><button class="ghost danger" onclick="delP('${k}')">✕</button></td></tr>`).join('');
+  const cons=(c.constraints||[]).map((x,i)=>`<div class="flex" style="margin-bottom:6px"><input value='${x}' onchange="CONFIG.constraints[${i}]=this.value"><button class="ghost danger" onclick="CONFIG.constraints.splice(${i},1);render()">✕</button></div>`).join('');
+  const fixed=Object.entries(c.fixed||{}).map(([k,v])=>`<div class="flex" style="margin-bottom:6px"><input value="${k}" disabled style="width:200px"><input value="${v}" onchange="CONFIG.fixed['${k}']=isNaN(+this.value)?this.value:+this.value"></div>`).join('');
+  $('#main').innerHTML=`
+  <div class="panel"><div class="flex"><h2 style="margin:0">Parameters &amp; constraints — ${CONFIG_NAME}</h2><div class="spacer"></div>
+    <button class="ghost" onclick="addP()">+ Add Parameter</button>
+    <button class="ghost" onclick="(CONFIG.constraints=CONFIG.constraints||[]).push('a < b');render()">+ Add Constraint</button>
+    <button class="primary" onclick="saveConfig()">Save Config</button></div>
+    <table><tr><th>Name</th><th>Type</th><th>Min</th><th>Max</th><th>Step</th><th></th></tr>${rows}</table>
+    <h2 style="margin-top:18px">Constraints <span class="muted">(python expressions over params)</span></h2>${cons||'<p class="muted">none</p>'}
+    <h2 style="margin-top:18px">Fixed parameters</h2>${fixed||'<p class="muted">none</p>'}
+    <div class="row" style="margin-top:14px">
+      <div><label>Objective</label><select onchange="CONFIG.objective=this.value">${['sharpe','psr','sortino','pnl_pct','win_rate'].map(o=>`<option ${c.objective===o?'selected':''}>${o}</option>`).join('')}</select></div>
+      <div><label>Fees</label><select onchange="CONFIG.fees=this.value">${['none','ibkr'].map(o=>`<option ${(c.fees||'none')===o?'selected':''}>${o}</option>`).join('')}</select></div>
+      <div><label>Account</label><select onchange="CONFIG.account_type=this.value">${['MARGIN','CASH'].map(o=>`<option ${(c.account_type||'MARGIN')===o?'selected':''}>${o}</option>`).join('')}</select></div>
+      <div><label>Primary symbol</label><input value="${c.symbol}" onchange="CONFIG.symbol=this.value"></div>
+      <div style="flex:2"><label>Universe (comma-sep)</label><input value="${(c.universe||[]).join(', ')}" onchange="CONFIG.universe=this.value.split(',').map(s=>s.trim()).filter(Boolean)"></div>
+    </div></div>`;
+}
+function setP(k,f,v){CONFIG.space[k][f]=v}
+function delP(k){delete CONFIG.space[k];render()}
+function addP(){CONFIG.space=CONFIG.space||{};CONFIG.space['param_'+Object.keys(CONFIG.space).length]={type:'int',low:1,high:10,step:1};render()}
+function renameParam(o,n){CONFIG.space[n]=CONFIG.space[o];delete CONFIG.space[o]}
+
+/* Backtest tab */
+function rBacktest(){
+  $('#main').innerHTML=`
+  <div class="panel"><h2>Run backtest — ${CONFIG_NAME||''}</h2>
+    <div class="row">
+      <div><label>Params (JSON, blank = defaults)</label><input id="btParams" value="{}"></div>
+      <div><label>Start (blank = all)</label><input id="btStart" placeholder="2018-01-01"></div>
+      <div><label>End</label><input id="btEnd" placeholder="2026-01-01"></div>
+      <div><label>Balance $</label><input id="btBal" type="number" value="100000"></div>
+      <div><label>Warm-up days${cfgTip('Bars fed BEFORE the start date so indicators initialize — your window trades from day one. Needs data existing before Start. Default in Settings.')}</label><input id="btWarm" type="number" value="${SETTINGS.default_warmup||380}"></div>
+      <div style="display:flex;align-items:flex-end"><button class="primary" onclick="runBT()" id="btGo">Run Backtest</button></div>
+    </div></div>
+  <div class="panel" id="btMetrics" style="display:none"><h2>Metrics</h2><div class="metrics" id="btCards"></div>
+    <div id="advStats" style="margin-top:14px"></div></div>
+  <div class="panel" id="btChartP" style="display:none"><h2>Equity curve</h2><canvas id="btChart" height="90"></canvas></div>
+  <div class="panel" id="btTrades" style="display:none"><h2>Trade log</h2><div id="btTradesBody"></div></div>`;
+}
+let BTPOLL=null;
+function showMetrics(m){
+  const cards=[['Sharpe',fmt(m.sharpe),m.sharpe>0],['Prob. Sharpe',pct(m.psr),m.psr>0.5],['Sortino',fmt(m.sortino),m.sortino>0],
+    ['Max Drawdown',pct(m.max_drawdown),false],['PnL %',fmt(m.pnl_pct,2)+'%',m.pnl_pct>0],['PnL $',fmt(m.pnl_total,0),m.pnl_total>0],
+    ['Win rate',pct(m.win_rate),m.win_rate>0.5],['Orders',m.total_orders,null],['Positions',m.total_positions,null]];
+  $('#btCards').innerHTML=cards.map(([k,v,g])=>`<div class="metric"><div class="v ${g===null?'':(g?'pos':'neg')}">${v}</div><div class="k">${k}</div></div>`).join('');
+  if(m.warmup_truncated)$('#btCards').insertAdjacentHTML('afterend',`<p class="neg" style="font-size:12.5px;margin-top:10px">⚠ Warm-up was truncated — the catalog has too little data before your start date, so part of the window was spent initializing. Move the start date later or extend history (Data tab → refetch from an earlier date).</p>`);
+  $('#btMetrics').style.display='block';
+}
+async function runBT(){
+  clearInterval(BTPOLL);
+  $('#btGo').textContent='Running…';$('#btMetrics').style.display='none';
+  try{
+    const{job_id}=await api('POST','/api/backtest',{config:CONFIG_NAME,params:JSON.parse($('#btParams').value||'{}'),
+      start:$('#btStart').value||null,end:$('#btEnd').value||null,balance:+$('#btBal').value,warmup_days:+$('#btWarm').value});
+    trackJob('backtest',job_id,{config:CONFIG_NAME});
+    // live chart: starts empty, points stream in as the backtest progresses
+    $('#btChartP').style.display='block';
+    if(CHART)CHART.destroy();
+    CHART=new Chart($('#btChart'),{type:'line',data:{labels:[],datasets:[{data:[],borderColor:'#7c7ce8',borderWidth:1.5,pointRadius:0,fill:{target:'origin',above:'rgba(91,91,214,.14)'}}]},
+      options:{animation:false,plugins:{legend:{display:false}},scales:{x:{ticks:{maxTicksLimit:10,color:'#7e808a'},grid:{color:'#232428'}},y:{ticks:{color:'#7e808a'},grid:{color:'#232428'}}}}});
+    let since=0;
+    BTPOLL=setInterval(async()=>{
+      const j=await api('GET',`/api/backtest/${job_id}?since=${since}`);since=j.next;
+      if(j.points.length){
+        for(const p of j.points){CHART.data.labels.push(new Date(p[0]).toISOString().slice(0,10));CHART.data.datasets[0].data.push(p[1]);}
+        const last=j.points[j.points.length-1][1], first=CHART.data.datasets[0].data[0];
+        $('#btGo').textContent=`Running… ${new Date(j.points[j.points.length-1][0]).toISOString().slice(0,10)} · $${last.toLocaleString()} (${((last/first-1)*100).toFixed(1)}%)`;
+        CHART.update('none');
+      }
+      if(j.status!=='running'){
+        clearInterval(BTPOLL);$('#btGo').textContent='Run Backtest';
+        if(j.status==='failed')return toast('✗ '+(j.error||'failed'));
+        showMetrics(j.result);
+        renderAdvStats(job_id,'#advStats');
+        addBenchmark(job_id,CHART);
+        if(j.result.trades){$('#btTrades').style.display='block';$('#btTradesBody').innerHTML=tradeTable(j.result.trades);}
+        if(PENDING.fromWF){
+          $('#btMetrics').insertAdjacentHTML('afterbegin',`<div class="flex" style="background:var(--card);border:1px solid var(--accent);border-radius:10px;padding:12px 14px;margin-bottom:14px">
+            <div><b>Next step:</b> <span class="muted">these are your walk-forward winners on full history. Now stress-test them on markets that never happened.</span></div>
+            <div class="spacer"></div><button class="primary" onclick="goPaperWithParams()">Paper trade these params →</button></div>`);
+        }
+      }
+    },400);
+  }catch(e){toast('✗ '+e.message);$('#btGo').textContent='Run Backtest'}
+}
+
+/* Optimize tab */
+let POLL=null;
+function rOptimize(){
+  $('#main').innerHTML=`
+  <div class="panel"><div class="flex"><h2 style="margin:0">Optimization — ${CONFIG_NAME||''}</h2><div class="spacer"></div>
+    <button class="primary" onclick="launchOpt()" id="optGo">Launch Optimization</button></div>
+    <div class="row" style="margin-top:10px">
+      <div><label>Segment length</label><select id="oSeg"><option value="3">3 months</option><option value="6" selected>6 months</option><option value="9">9 months</option></select></div>
+      <div><label># Windows</label><input id="oWin" type="number" value="20"></div>
+      <div><label>Trials / window</label><input id="oTri" type="number" value="50"></div>
+      <div><label>Parallel jobs${cfgTip('Default set in Settings → Compute defaults.')}</label><input id="oJobs" type="number" value="${SETTINGS.default_jobs||8}"></div>
+      <div><label>Warm-up days${cfgTip('Default set in Settings → Compute defaults. Must cover your longest lookback in calendar days (252 trading days ≈ 380).')}</label><input id="oWarm" type="number" value="${SETTINGS.default_warmup||90}"></div>
+      <div><label>Holdout months</label><input id="oHold" type="number" value="0"></div>
+      <div><label>Balance $</label><input id="oBal" type="number" value="100000"></div>
+    </div></div>
+  <div class="panel" id="optProg" style="display:none">
+    <div class="flex"><h2 style="margin:0">Progress</h2><span class="badge" id="optStatus">running</span></div>
+    <div class="progress" style="margin:12px 0"><div id="optBar" style="width:0%"></div></div>
+    <table id="optTable"><tr><th>#</th><th>IS window</th><th>OOS window</th><th>Best params</th><th>IS</th><th>OOS</th></tr></table></div>
+  <div class="panel" id="optRec" style="display:none"></div>`;
+}
+async function launchOpt(){
+  const{job_id}=await api('POST','/api/optimize',{config:CONFIG_NAME,segment_months:+$('#oSeg').value,windows:+$('#oWin').value,
+    trials:+$('#oTri').value,jobs:+$('#oJobs').value,warmup_days:+$('#oWarm').value,holdout_months:+$('#oHold').value,balance:+$('#oBal').value});
+  trackJob('optimize',job_id,{config:CONFIG_NAME});
+  $('#optProg').style.display='block';$('#optRec').style.display='none';$('#optTable').innerHTML='<tr><th>#</th><th>IS window</th><th>OOS window</th><th>Best params</th><th>IS</th><th>OOS</th></tr>';
+  let since=0;clearInterval(POLL);
+  POLL=setInterval(async()=>{
+    const j=await api('GET',`/api/jobs/${job_id}?since=${since}`);since=j.next;
+    for(const e of j.events){
+      if(e.type==='window_done'){
+        $('#optBar').style.width=(e.i/e.n*95)+'%';
+        $('#optTable').insertAdjacentHTML('beforeend',`<tr><td>${e.i}</td><td>${e.window.is_start} → ${e.window.is_end}</td>
+          <td>${e.window.oos_start} → ${e.window.oos_end}</td><td><code>${JSON.stringify(e.best_params)}</code></td>
+          <td>${fmt(e.is_objective)}</td><td class="${e.oos_objective>0?'pos':'neg'}">${fmt(e.oos_objective)}</td></tr>`);}
+      if(e.type==='phase')$('#optStatus').textContent='cross-validating…';
+    }
+    if(j.status!=='running'){clearInterval(POLL);$('#optBar').style.width='100%';$('#optStatus').textContent=j.status;
+      if(j.status==='failed'){
+        $('#optProg').insertAdjacentHTML('beforeend',`<p class="neg" style="font-family:var(--mono);font-size:12px;white-space:pre-wrap">${(j.error||'failed').replace(/</g,'&lt;')}</p><p class="muted">Full traceback in the <a href="#" onclick="go('logs');return false" style="color:var(--accent)">Logs</a> tab.</p>`);
+        return;
+      }
+      const s=j.result.summary;
+      $('#optRec').style.display='block';
+      $('#optRec').innerHTML=`<h2>Recommended model</h2>
+        <p><code>${JSON.stringify(s.recommended_params)}</code></p>
+        <div class="metrics">
+          <div class="metric"><div class="v ${s.recommended_median_oos>0?'pos':'neg'}">${fmt(s.recommended_median_oos)}</div><div class="k">Median OOS ${j.result.config.objective}</div></div>
+          <div class="metric"><div class="v">${pct(s.recommended_pct_positive)}</div><div class="k">OOS windows positive</div></div>
+          <div class="metric"><div class="v">${fmt(s.median_is_objective)}</div><div class="k">Median IS (expect higher)</div></div>
+          <div class="metric"><div class="v">${fmt(s.median_oos_objective)}</div><div class="k">Median OOS (all windows)</div></div>
+          <div class="metric"><div class="v">${s.elapsed_secs}s</div><div class="k">Elapsed</div></div></div>
+        <p class="muted">Saved to <code>runs/${j.result.run_id}/optimized_model.json</code>. Large IS→OOS drop ⇒ overfitting to noise.</p>
+        <button class="ghost" id="useRec">Backtest these params →</button>
+        <div id="optHeat" style="margin-top:18px"></div>`;
+      const rec=JSON.stringify(s.recommended_params);
+      $('#useRec').onclick=()=>{go('backtest');setTimeout(()=>{$('#btParams').value=rec},0)};
+      if(j.result.trials&&j.result.trials.length)renderHeatmap('#optHeat',j.result.trials,'opt');
+    }
+  },800);
+}
+
+/* Trade log table */
+function tradeTable(trades){
+  if(!trades||!trades.length)return '<p class="muted">no fills</p>';
+  return `<div style="max-height:320px;overflow-y:auto">
+    <table><tr><th>Time</th><th>Symbol</th><th>Side</th><th style="text-align:right">Shares</th><th style="text-align:right">Price</th><th style="text-align:right">Value $</th></tr>
+    ${trades.map(t=>`<tr><td class="muted" style="white-space:nowrap">${new Date(t.ts).toISOString().slice(0,10)}</td>
+      <td><b>${t.symbol}</b></td><td class="${t.side==='BUY'?'pos':'neg'}">${t.side}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">${t.qty}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">${t.price.toFixed(2)}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">${t.value.toLocaleString()}</td></tr>`).join('')}
+    </table></div><p class="muted">${trades.length} fills</p>`;
+}
+
+/* Heat map: mean objective over a 2-param grid, red -> green gradient */
+function heatColor(v,lo,hi){
+  if(hi<=lo)return '#26282d';
+  const t=Math.max(0,Math.min(1,(v-lo)/(hi-lo)));
+  const stops=[[229,104,95],[239,159,39],[82,201,138]];
+  const seg=t<0.5?[stops[0],stops[1],t*2]:[stops[1],stops[2],(t-0.5)*2];
+  const c=seg[0].map((a,i)=>Math.round(a+(seg[1][i]-a)*seg[2]));
+  return `rgb(${c[0]},${c[1]},${c[2]})`;
+}
+function renderHeatmap(sel,trials,uid){
+  const numeric=k=>trials.some(t=>typeof t[k]==='number');
+  const keys=Object.keys(trials[0]||{}).filter(k=>!k.startsWith('_')&&numeric(k));
+  if(trials.length<4||keys.length<2){$(sel).innerHTML='<p class="muted">not enough trial data for a heat map</p>';return}
+  $(sel).innerHTML=`<div class="flex" style="margin-bottom:10px"><h2 style="margin:0">Parameter heat map <span class="muted">(mean IS objective — flat single color ⇒ robust)</span></h2>
+    <div class="spacer"></div>
+    <select id="hx_${uid}" style="width:150px">${keys.map(k=>`<option>${k}</option>`).join('')}</select>
+    <select id="hy_${uid}" style="width:150px">${keys.map((k,i)=>`<option ${i===1?'selected':''}>${k}</option>`).join('')}</select></div>
+    <div id="hm_${uid}"></div>`;
+  const draw=()=>{
+    const kx=$(`#hx_${uid}`).value,ky=$(`#hy_${uid}`).value;
+    if(kx===ky){$(`#hm_${uid}`).innerHTML='<p class="muted">pick two different params</p>';return}
+    const bin=k=>{const vals=[...new Set(trials.map(t=>t[k]))].sort((a,b)=>a-b);
+      if(vals.length<=14)return{edges:null,labels:vals.map(v=>+v.toFixed?.(3)??v),idx:t=>vals.indexOf(t[k]),n:vals.length};
+      const lo=vals[0],hi=vals[vals.length-1],n=10,w=(hi-lo)/n;
+      return{labels:Array.from({length:n},(_,i)=>+(lo+w*(i+0.5)).toFixed(2)),idx:t=>Math.min(n-1,Math.floor((t[k]-lo)/w)),n}};
+    const bx=bin(kx),by=bin(ky);
+    const sum=Array.from({length:by.n},()=>Array(bx.n).fill(0)),cnt=Array.from({length:by.n},()=>Array(bx.n).fill(0));
+    for(const t of trials){const i=by.idx(t),j=bx.idx(t);if(i>=0&&j>=0){sum[i][j]+=t._value;cnt[i][j]++}}
+    const cells=[];let lo=1e9,hi=-1e9;
+    for(let i=0;i<by.n;i++)for(let j=0;j<bx.n;j++)if(cnt[i][j]){const m=sum[i][j]/cnt[i][j];lo=Math.min(lo,m);hi=Math.max(hi,m)}
+    let h=`<div style="display:grid;grid-template-columns:70px repeat(${bx.n},1fr);gap:2px;font-size:10.5px">`;
+    for(let i=by.n-1;i>=0;i--){
+      h+=`<div class="muted" style="display:flex;align-items:center;justify-content:flex-end;padding-right:6px">${by.labels[i]}</div>`;
+      for(let j=0;j<bx.n;j++){
+        const c=cnt[i][j],m=c?sum[i][j]/c:null;
+        h+=`<div title="${kx}=${bx.labels[j]} ${ky}=${by.labels[i]} → ${m!=null?m.toFixed(3):'n/a'} (${c} trials)" style="aspect-ratio:1.6;border-radius:3px;background:${m!=null?heatColor(m,lo,hi):'#1c1d21'};display:flex;align-items:center;justify-content:center;color:rgba(0,0,0,.65);font-weight:600">${m!=null&&bx.n<=10?m.toFixed(1):''}</div>`;}
+    }
+    h+=`<div></div>`+bx.labels.map(l=>`<div class="muted" style="text-align:center;padding-top:4px">${l}</div>`).join('');
+    h+=`</div><div class="flex" style="margin-top:10px;font-size:11px"><span class="muted">${lo.toFixed(2)}</span>
+      <div style="flex:0 0 140px;height:8px;border-radius:4px;background:linear-gradient(90deg,#e5685f,#ef9f27,#52c98a)"></div>
+      <span class="muted">${hi.toFixed(2)}</span><span class="muted" style="margin-left:10px">x: ${kx} · y: ${ky}</span></div>`;
+    $(`#hm_${uid}`).innerHTML=h;
+  };
+  $(`#hx_${uid}`).onchange=draw;$(`#hy_${uid}`).onchange=draw;draw();
+}
+
+/* SPY benchmark overlay: scaled to the same starting balance */
+async function addBenchmark(btId,chart){
+  try{
+    const b=await api('GET',`/api/backtests/${btId}/benchmark`);
+    if(!b.points.length||!chart)return;
+    const map={};for(const p of b.points)map[new Date(p[0]).toISOString().slice(0,10)]=p[1];
+    const labels=chart.data.labels;
+    let c0=null;for(const d of labels){if(map[d]!=null){c0=map[d];break}}
+    if(c0==null)return;
+    const bal=chart.data.datasets[0].data[0];
+    chart.data.datasets[0].label='Strategy';
+    chart.data.datasets.push({label:'SPY (same $)',data:labels.map(d=>map[d]!=null?+(bal*map[d]/c0).toFixed(2):null),
+      borderColor:'#7e808a',borderWidth:1.2,borderDash:[5,4],pointRadius:0,spanGaps:true,fill:false});
+    chart.options.plugins.legend={display:true,labels:{color:'#7e808a',boxWidth:18,font:{size:11}}};
+    chart.update('none');
+  }catch(e){}
+}
+
+/* Advanced on-demand stats (dropdown -> compute from stored equity curve) */
+async function renderAdvStats(btId,sel){
+  const stats=await api('GET','/api/stats');
+  $(sel).innerHTML=`<div class="flex"><h2 style="margin:0">Advanced stats</h2>
+    <select id="statSel_${btId}" style="width:280px">${Object.entries(stats).map(([k,d])=>`<option value="${k}">${k} — ${d}</option>`).join('')}</select>
+    <button class="ghost" onclick="computeStat('${btId}')">Compute</button>
+    <button class="ghost" onclick="computeAllStats('${btId}')">Compute all</button></div>
+    <div class="metrics" id="statCards_${btId}" style="margin-top:10px"></div>`;
+}
+function statFmt(s){
+  if(s.value==null)return '–';
+  if(s.fmt==='pct')return (s.value*100).toFixed(2)+'%';
+  if(s.fmt==='int')return String(s.value);
+  return Number(s.value).toFixed(3);
+}
+async function computeStat(btId,name){
+  name=name||$(`#statSel_${btId}`).value;
+  try{
+    const s=await api('GET',`/api/backtests/${btId}/stat/${name}`);
+    const c=$(`#statCards_${btId}`);
+    const old=document.getElementById(`stat_${btId}_${name}`);if(old)old.remove();
+    c.insertAdjacentHTML('beforeend',`<div class="metric" id="stat_${btId}_${name}" title="${s.description}">
+      <div class="v">${statFmt(s)}</div><div class="k">${name.replaceAll('_',' ')}</div></div>`);
+  }catch(e){toast('✗ '+e.message)}
+}
+async function computeAllStats(btId){
+  const stats=await api('GET','/api/stats');
+  for(const k of Object.keys(stats))await computeStat(btId,k);
+}
+
+function applyWFParams(paramsJson){
+  PENDING={params:JSON.parse(paramsJson),fromWF:true};
+  go('backtest');
+  setTimeout(()=>{$('#btParams').value=paramsJson;runBT();},80);
+}
+/* Walk-forward tab */
+let WFPOLL=null;
+function rWF(){
+  if(!CONFIG)return $('#main').innerHTML='<p class="muted">open a project first</p>';
+  const numeric=Object.entries(CONFIG.space||{}).filter(([k,v])=>v.type==='int'||v.type==='float');
+  const rows=numeric.map(([k,v])=>`
+    <tr><td><input type="checkbox" id="wfen_${k}" checked style="width:auto"></td>
+    <td><code>${k}</code></td>
+    <td><input type="number" step="any" id="wflo_${k}" value="${v.low}"></td>
+    <td><input type="number" step="any" id="wfhi_${k}" value="${v.high}"></td>
+    <td><input type="number" step="any" id="wfst_${k}" value="${v.step??(v.type==='int'?Math.max(1,Math.round((v.high-v.low)/8)):+(((v.high-v.low)/8).toFixed(3)))}"></td></tr>`).join('');
+  $('#main').innerHTML=`
+  <div class="panel"><div class="flex"><h2 style="margin:0">Walk-forward — rolling IS/OOS grid search</h2><div class="spacer"></div>
+    <span class="muted" id="wfPreview"></span>
+    <button class="primary" id="wfGo" onclick="launchWF()">Launch Walk-forward</button></div>
+    <p class="muted">A fixed in-sample window is grid-searched over the parameter ranges below, the best params trade the following out-of-sample window, then everything rolls forward. OOS segments are stitched into one continuous curve.</p>
+    <table><tr><th></th><th>Parameter</th><th>Min</th><th>Max</th><th>Step</th></tr>${rows}</table>
+    ${(CONFIG.constraints||[]).length?`<p class="muted" style="margin-top:10px">Active parameter constraints ${cfgTip('Defined in the Parameters tab. Combos violating these are pruned before any backtest runs — the combo count above is post-pruning. Unchecked params use their fixed value from the Parameters tab.')}: ${CONFIG.constraints.map(c=>`<code>${c}</code>`).join(' · ')}</p>`:`<p class="muted" style="margin-top:10px">No parameter constraints defined — add them in the Parameters tab (e.g. <code>week_weight + short_weight ≤ 1.0</code>).</p>`}
+    <div class="row" style="margin-top:14px">
+      <div><label>IS months</label><input id="wfIs" type="number" value="12"></div>
+      <div><label>OOS months</label><input id="wfOos" type="number" value="3"></div>
+      <div><label>Step months (blank = OOS)</label><input id="wfStep" type="number" placeholder="3"></div>
+      <div><label>Gap days</label><input id="wfGap" type="number" value="3"></div>
+      <div><label>Warm-up days${cfgTip('Default set in Settings → Compute defaults. Must cover your longest lookback in calendar days.')}</label><input id="wfWarm" type="number" value="${SETTINGS.default_warmup||380}"></div>
+      <div><label>Balance $</label><input id="wfBal" type="number" value="100000"></div>
+      <div><label>Parallel jobs${cfgTip('Default set in Settings → Compute defaults. Grid size cap is also there.')}</label><input id="wfJobs" type="number" value="${SETTINGS.default_jobs||8}"></div>
+    </div>
+    <div style="margin-top:12px">
+      <label>Quality constraint <span class="muted">— python expression over: sharpe, psr, pnl_pct, max_drawdown, alpha (vs SPY, annualized), value, positions. Applied to leaderboard AND each segment's winner selection (relaxed with a warning if nothing passes).</span></label>
+      <input id="wfFilter" placeholder="e.g.  sharpe > 1 and psr > 0.6 and alpha > 0" oninput="if($('#wfLeader'))drawLeader()">
+    </div></div>
+  <div class="panel" id="wfProg" style="display:none">
+    <div class="flex"><h2 style="margin:0">Progress</h2><span class="badge" id="wfStatus">running</span>
+      <span class="muted" id="wfCount"></span></div>
+    <div class="progress" style="margin:12px 0"><div id="wfBar" style="width:0%"></div></div>
+    <table id="wfTable"><tr><th>#</th><th>IS window</th><th>OOS window</th><th>Best params</th><th>IS</th><th>OOS</th></tr></table></div>
+  <div class="panel" id="wfLive" style="display:none">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+      <div>
+        <div class="flex"><h2 style="margin:0 0 10px">Leaderboard</h2><div class="spacer"></div>
+          <select id="wfRank" style="width:140px" onchange="drawLeader()">
+            <option value="value">objective</option><option value="sharpe">sharpe</option>
+            <option value="psr">psr</option><option value="pnl_pct">pnl %</option>
+            <option value="alpha">α vs SPY</option>
+            <option value="max_drawdown">max drawdown</option></select></div>
+        <table id="wfLeader"></table>
+      </div>
+      <div><h2>Backtest feed <span class="muted">(latest)</span></h2><table id="wfFeed"></table></div>
+    </div></div>
+  <div id="wfResult"></div>`;
+  const human=s=>s==null?'':s<90?`~${s}s`:s<5400?`~${Math.round(s/60)} min`:`~${(s/3600).toFixed(1)} h`;
+  let updSeq=0,updTimer=null;
+  const upd=async()=>{
+    const seq=++updSeq;
+    try{
+      $('#wfPreview').textContent='estimating…';
+      const p=await api('POST','/api/walkforward/preview',wfBody());
+      if(seq!==updSeq)return; // stale response from an older form state — drop it
+      $('#wfPreview').innerHTML=`${p.n_combos.toLocaleString()} combos × ${p.n_segments} segments = ${p.total_backtests.toLocaleString()} backtests`
+        +(p.est_seconds!=null?` · ${human(p.est_seconds)} on ${$('#wfJobs').value} cores (${p.per_backtest_ms}ms/backtest)`:'')
+        +(p.warmup_warning?`<br><span class="neg">⚠ ${p.warmup_warning}</span>`:'');
+    }catch(e){if(seq===updSeq)$('#wfPreview').textContent='⚠ '+e.message}};
+  const updDebounced=()=>{clearTimeout(updTimer);updTimer=setTimeout(upd,450)};
+  $('#main').querySelectorAll('input').forEach(i=>i.onchange=updDebounced);updDebounced();
+}
+function wfBody(){
+  const space={};
+  for(const[k,v]of Object.entries(CONFIG.space||{})){
+    if(v.type!=='int'&&v.type!=='float')continue;
+    if(!$(`#wfen_${k}`)||!$(`#wfen_${k}`).checked)continue;
+    space[k]={type:v.type,low:+$(`#wflo_${k}`).value,high:+$(`#wfhi_${k}`).value,step:+$(`#wfst_${k}`).value};
+  }
+  return{config:CONFIG_NAME,space,is_months:+$('#wfIs').value,oos_months:+$('#wfOos').value,
+    step_months:$('#wfStep').value?+$('#wfStep').value:null,gap_days:+$('#wfGap').value,
+    warmup_days:+$('#wfWarm').value,balance:+$('#wfBal').value,jobs:+$('#wfJobs').value,
+    metric_filter:($('#wfFilter')&&$('#wfFilter').value.trim())||''};
+}
+let WFTRIALS=[],WFFEED=[],WFTOTAL=0;
+function wfFilterFn(){
+  const raw=($('#wfFilter')&&$('#wfFilter').value.trim())||'';
+  if(!raw)return()=>true;
+  const js=raw.replace(/\band\b/g,'&&').replace(/\bor\b/g,'||').replace(/\bnot\b/g,'!');
+  try{
+    const f=new Function('t','with(t){return ('+js+')}');
+    f({sharpe:0,psr:0,pnl_pct:0,max_drawdown:0,alpha:0,value:0,positions:0});  // syntax check
+    return t=>{try{return !!f(t)}catch(e){return false}};
+  }catch(e){return()=>true}
+}
+function drawLeader(){
+  const k=$('#wfRank')?$('#wfRank').value:'value';
+  const pass=wfFilterFn();
+  const valid=WFTRIALS.filter(t=>t[k]!=null&&t.positions>0&&pass(t));
+  const sorted=valid.sort((a,b)=>(b[k]??-1e9)-(a[k]??-1e9)).slice(0,12);
+  const cap=$('#wfLeader').previousElementSibling;
+  $('#wfLeader').innerHTML='<tr><th>#</th><th>Params</th><th>Seg</th><th>'+k.replaceAll('_',' ')+'</th><th>Sharpe</th><th>α/SPY</th><th>DD</th></tr>'+
+    (sorted.length?sorted.map((t,i)=>`<tr><td class="muted">${i+1}</td><td class="trunc" title='${JSON.stringify(t.params)}'><code>${JSON.stringify(t.params)}</code></td>
+      <td class="muted">${t.segment}</td><td class="${t[k]>0?'pos':'neg'}"><b>${fmt(t[k])}</b></td>
+      <td>${fmt(t.sharpe,2)}</td><td class="${t.alpha>0?'pos':'neg'}">${t.alpha!=null?(t.alpha*100).toFixed(1)+'%':'–'}</td>
+      <td>${pct(t.max_drawdown)}</td></tr>`).join('')
+    :'<tr><td colspan=7 class="muted">no backtests pass the constraint yet</td></tr>');
+}
+function drawFeed(){
+  $('#wfFeed').innerHTML='<tr><th>Seg</th><th>Params</th><th>Obj</th><th>PnL %</th></tr>'+
+    WFFEED.slice(-18).reverse().map(t=>`<tr><td class="muted">${t.segment}</td>
+      <td class="trunc" title='${JSON.stringify(t.params)}'><code>${JSON.stringify(t.params)}</code></td>
+      <td class="${t.value>0?'pos':'neg'}">${fmt(t.value)}</td><td>${fmt(t.pnl_pct,1)}</td></tr>`).join('');
+}
+async function launchWF(){
+  let job_id;try{({job_id}=await api('POST','/api/walkforward',wfBody()))}catch(e){return toast('✗ '+e.message)}
+  trackJob('walkforward',job_id,{config:CONFIG_NAME});
+  $('#wfProg').style.display='block';$('#wfLive').style.display='block';$('#wfResult').innerHTML='';
+  $('#wfTable').innerHTML='<tr><th>#</th><th>IS window</th><th>OOS window</th><th>Best params</th><th>IS</th><th>OOS</th></tr>';
+  WFTRIALS=[];WFFEED=[];WFTOTAL=0;let nseg=0,ncombo=0,done=0;
+  let since=0;clearInterval(WFPOLL);
+  WFPOLL=setInterval(async()=>{
+    const j=await api('GET',`/api/jobs/${job_id}?since=${since}`);since=j.next;
+    let dirty=false;
+    for(const e of j.events){
+      if(e.type==='started'){nseg=e.n_segments;ncombo=e.n_combos;}
+      if(e.type==='trial'){
+        done++;dirty=true;
+        WFTRIALS.push(e);if(WFTRIALS.length>8000)WFTRIALS.shift();
+        WFFEED.push(e);if(WFFEED.length>40)WFFEED.shift();
+        if(nseg&&ncombo)$('#wfBar').style.width=Math.min(97,done/(nseg*ncombo)*100)+'%';
+      }
+      if(e.type==='segment_done'){
+        $('#wfTable').insertAdjacentHTML('beforeend',`<tr><td>${e.i}${e.filter_relaxed?' ⚠':''}</td><td>${e.is_window[0]} → ${e.is_window[1]}</td>
+          <td>${e.oos_window[0]} → ${e.oos_window[1]}</td><td class="trunc"><code>${JSON.stringify(e.best_params)}</code>${e.filter_relaxed?' <span class="neg" style="font-size:11px">no combo passed the constraint — best unfiltered used</span>':''}</td>
+          <td>${fmt(e.is_objective)}</td><td class="${e.oos_objective>0?'pos':'neg'}">${fmt(e.oos_objective)}</td></tr>`);}
+    }
+    if(dirty){$('#wfCount').textContent=`${done.toLocaleString()} / ${(nseg*ncombo).toLocaleString()} backtests`;drawLeader();drawFeed();}
+    if(j.status!=='running'){clearInterval(WFPOLL);$('#wfBar').style.width='100%';$('#wfStatus').textContent=j.status;
+      if(j.status==='failed'){$('#wfProg').insertAdjacentHTML('beforeend',`<p class="neg" style="font-family:var(--mono);font-size:12px;white-space:pre-wrap">${(j.error||'failed')}</p><p class="muted">Details in <a href="#" onclick="go('logs');return false" style="color:var(--accent2)">Logs</a>.</p>`);return}
+      renderWFResult(j.result,'#wfResult');
+    }
+  },800);
+}
+function wfConsensus(r){
+  // majority vote: the param set chosen most often across segments
+  const counts={};
+  for(const g of r.segments||[]){if(!g.best_params)continue;const k=JSON.stringify(g.best_params);counts[k]=(counts[k]||0)+1}
+  const best=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
+  return best?{params:JSON.parse(best[0]),votes:best[1],of:(r.segments||[]).length}:null;
+}
+function renderWFResult(r,sel){
+  const s=r.summary;
+  const cons=wfConsensus(r);
+  $(sel).innerHTML=`<div class="panel"><h2>Walk-forward result — ${r.run_id}</h2>
+    ${cons?`<div class="flex" style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:16px">
+      <div><div class="muted" style="font-size:11px">Consensus winner (chosen in ${cons.votes}/${cons.of} segments)</div>
+      <code>${JSON.stringify(cons.params)}</code></div><div class="spacer"></div>
+      <button class="primary" onclick='applyWFParams(${JSON.stringify(JSON.stringify(cons.params))})'>Apply &amp; run full backtest →</button></div>`:''}
+    <div class="metrics" style="margin-bottom:16px">
+      <div class="metric"><div class="v ${s.stitched_sharpe>0?'pos':'neg'}">${fmt(s.stitched_sharpe,2)}</div><div class="k">Stitched OOS Sharpe</div></div>
+      <div class="metric"><div class="v ${s.stitched_pnl_pct>0?'pos':'neg'}">${fmt(s.stitched_pnl_pct,1)}%</div><div class="k">Stitched OOS PnL</div></div>
+      <div class="metric"><div class="v">${pct(s.stitched_max_drawdown)}</div><div class="k">Max drawdown</div></div>
+      <div class="metric"><div class="v">${pct(s.stitched_psr)}</div><div class="k">Prob. Sharpe</div></div>
+      <div class="metric"><div class="v">${fmt(s.median_is_objective)} → ${fmt(s.median_oos_objective)}</div><div class="k">Median IS → OOS</div></div>
+    </div>
+    <canvas id="wfChart" height="80"></canvas>
+    <div id="wfHeat" style="margin-top:20px"></div>
+    <h2 style="margin-top:20px">Segments</h2>
+    <table><tr><th>#</th><th>IS</th><th>OOS</th><th>Best params</th><th>IS obj</th><th>OOS obj</th></tr>
+    ${r.segments.map(g=>g.error?`<tr><td>${g.segment+1}</td><td colspan=5 class="neg">${g.error}</td></tr>`
+      :`<tr><td>${g.segment+1}</td><td class="muted">${g.is_window[0]} → ${g.is_window[1]}</td><td class="muted">${g.oos_window[0]} → ${g.oos_window[1]}</td>
+      <td class="trunc"><code>${JSON.stringify(g.best_params)}</code></td><td>${fmt(g.is_objective)}</td>
+      <td class="${g.oos_objective>0?'pos':'neg'}">${fmt(g.oos_objective)}</td></tr>`).join('')}</table></div>`;
+  if(r.stitched_curve&&r.stitched_curve.length){
+    if(CHART)CHART.destroy();
+    CHART=new Chart($('#wfChart'),{type:'line',data:{labels:r.stitched_curve.map(p=>new Date(p[0]).toISOString().slice(0,10)),
+      datasets:[{label:'Stitched OOS',data:r.stitched_curve.map(p=>p[1]),borderColor:'#7c7ce8',borderWidth:1.6,pointRadius:0,fill:{target:'origin',above:'rgba(91,91,214,.14)'}}]},
+      options:{animation:false,plugins:{legend:{display:false}},scales:{x:{ticks:{maxTicksLimit:10,color:'#7e808a'},grid:{color:'#232428'}},y:{ticks:{color:'#7e808a'},grid:{color:'#232428'}}}}});
+  }
+  if(r.trials&&r.trials.length)renderHeatmap('#wfHeat',r.trials,'wf');
+}
+
+/* Paper trading tab — synthetic continuation, live-paced or Monte Carlo */
+let PPOLL=null;
+function goPaperWithParams(){go('paper')}
+function rPaper(){
+  if(!CONFIG)return $('#main').innerHTML='<p class="muted">open a project first</p>';
+  $('#main').innerHTML=`
+  <div class="panel"><div class="flex"><h2 style="margin:0">Paper trading — synthetic market</h2>
+    ${PENDING.params?`<span class="badge pos" title='${JSON.stringify(PENDING.params)}'>using walk-forward params</span><button class="ghost" style="padding:3px 10px;font-size:11px" onclick="PENDING={};render()">clear</button>`:''}
+    <div class="spacer"></div>
+    <button class="primary" id="ppGo" onclick="launchPaper()">Start</button></div>
+    <p class="muted">Calibrates a correlated random walk (GBM) on each symbol's real history — same volatilities and cross-correlations, bootstrapped volumes — then trades the strategy on <b>unseen</b> generated data. Live mode paces one path so you can watch it trade; Monte Carlo runs many paths at full speed and reports the <b>distribution</b> of outcomes. Note: GBM has no persistent alpha — results approximate "what if my fitted patterns don't repeat", a deliberately hostile robustness test.</p>
+    <div class="row">
+      <div><label>Mode</label><select id="ppMode"><option value="live">Live (watch 1 path)</option><option value="monte">Monte Carlo (N paths)</option></select></div>
+      <div><label>Horizon (years)</label><input id="ppHor" type="number" value="5" step="0.5"></div>
+      <div id="ppPathsW" style="display:none"><label>Paths</label><input id="ppPaths" type="number" value="25"></div>
+      <div id="ppSpeedW"><label>Speed (bars/sec)</label><input id="ppSpeed" type="number" value="20"></div>
+      <div><label>Calibration window (yrs)</label><input id="ppHist" type="number" value="4"></div>
+      <div><label>Warm-up days${cfgTip('Default in Settings → Compute defaults.')}</label><input id="ppWarm" type="number" value="${SETTINGS.default_warmup||380}"></div>
+      <div><label>Balance $</label><input id="ppBal" type="number" value="100000"></div>
+      <div><label>Seed</label><input id="ppSeed" type="number" value="42"></div>
+    </div></div>
+  <div class="panel" id="ppLive" style="display:none">
+    <div class="flex"><h2 style="margin:0">Live equity — synthetic future</h2><span class="badge" id="ppStatus">running</span>
+      <span class="muted" id="ppTicker"></span></div>
+    <canvas id="ppChart" height="80"></canvas></div>
+  <div class="panel" id="ppDist" style="display:none"><h2>Outcome distribution</h2>
+    <div class="metrics" id="ppCards"></div>
+    <table id="ppPathsT" style="margin-top:14px"></table></div>
+  <div class="panel" id="ppTrades" style="display:none"><h2>Trades (live path)</h2><div id="ppTradesBody"></div></div>`;
+  $('#ppMode').onchange=()=>{const m=$('#ppMode').value;
+    $('#ppPathsW').style.display=m==='monte'?'block':'none';
+    $('#ppSpeedW').style.display=m==='live'?'block':'none';};
+}
+async function launchPaper(){
+  const mode=$('#ppMode').value;
+  const body={config:CONFIG_NAME,horizon_years:+$('#ppHor').value,
+    paths:mode==='monte'?+$('#ppPaths').value:1,
+    speed:mode==='live'?+$('#ppSpeed').value:0,
+    hist_window_years:+$('#ppHist').value,warmup_days:+$('#ppWarm').value,
+    balance:+$('#ppBal').value,seed:+$('#ppSeed').value,params:PENDING.params||{}};
+  let job_id;try{({job_id}=await api('POST','/api/paper',body))}catch(e){return toast('✗ '+e.message)}
+  trackJob('paper',job_id,{config:CONFIG_NAME,mode});
+  $('#ppLive').style.display='block';$('#ppDist').style.display='none';$('#ppTrades').style.display='none';
+  $('#ppStatus').textContent='running';
+  if(CHART)CHART.destroy();
+  CHART=new Chart($('#ppChart'),{type:'line',data:{labels:[],datasets:[
+      {label:'Strategy',data:[],borderColor:'#52c98a',borderWidth:1.6,pointRadius:0,fill:{target:'origin',above:'rgba(82,201,138,.10)'}},
+      {label:'SPY (same synthetic world)',data:[],borderColor:'#7e808a',borderWidth:1.2,borderDash:[5,4],pointRadius:0,fill:false,spanGaps:true}]},
+    options:{animation:false,plugins:{legend:{display:true,labels:{color:'#7e808a',boxWidth:18,font:{size:11}}}},scales:{x:{ticks:{maxTicksLimit:10,color:'#7e808a'},grid:{color:'#232428'}},y:{ticks:{color:'#7e808a'},grid:{color:'#232428'}}}}});
+  let since=0,esince=0,benchMap=null;const paths=[];clearInterval(PPOLL);
+  PPOLL=setInterval(async()=>{
+    const j=await api('GET',`/api/paper/${job_id}?since=${since}&esince=${esince}`);since=j.next;esince=j.enext;
+    if(j.points.length){
+      for(const p of j.points){
+        const d=new Date(p[0]).toISOString().slice(0,10);
+        CHART.data.labels.push(d);CHART.data.datasets[0].data.push(p[1]);
+        CHART.data.datasets[1].data.push(benchMap&&benchMap[d]!=null?benchMap[d]:null);
+      }
+      const last=j.points[j.points.length-1][1],first=CHART.data.datasets[0].data[0];
+      $('#ppTicker').textContent=`${new Date(j.points[j.points.length-1][0]).toISOString().slice(0,10)} · $${last.toLocaleString()} (${((last/first-1)*100).toFixed(1)}%)`;
+      CHART.update('none');
+    }
+    for(const e of j.events){
+      if(e.type==='benchmark'){benchMap={};for(const p of e.points)benchMap[new Date(p[0]).toISOString().slice(0,10)]=p[1];}
+      if(e.type==='path_done'){paths.push(e);
+        $('#ppDist').style.display='block';
+        $('#ppPathsT').innerHTML='<tr><th>Path</th><th>Sharpe</th><th>PSR</th><th>PnL %</th><th>SPY %</th><th>vs SPY</th><th>Max DD</th><th>Positions</th></tr>'+
+          paths.map(p=>`<tr><td class="muted">${p.i}</td><td class="${p.sharpe>0?'pos':'neg'}">${fmt(p.sharpe,2)}</td>
+            <td>${pct(p.psr)}</td><td class="${p.pnl_pct>0?'pos':'neg'}">${fmt(p.pnl_pct,1)}</td>
+            <td class="muted">${fmt(p.spy_pnl_pct,1)}</td>
+            <td class="${p.excess_pnl_pct>0?'pos':'neg'}">${p.excess_pnl_pct!=null?(p.excess_pnl_pct>0?'+':'')+fmt(p.excess_pnl_pct,1):'–'}</td>
+            <td>${pct(p.max_drawdown)}</td><td>${p.total_positions}</td></tr>`).join('');
+        $('#ppStatus').textContent=`path ${e.i}/${e.n}`;}
+    }
+    if(j.status!=='running'){clearInterval(PPOLL);$('#ppStatus').textContent=j.status;
+      if(j.status==='failed')return toast('✗ '+(j.error||'failed'));
+      const s=j.result.summary;
+      $('#ppDist').style.display='block';
+      $('#ppCards').innerHTML=[
+        ['Median Sharpe',fmt(s.sharpe_median,2),s.sharpe_median>0],
+        ['Sharpe p5 … p95',`${fmt(s.sharpe_p5,2)} … ${fmt(s.sharpe_p95,2)}`,null],
+        ['Median PnL',fmt(s.pnl_median,1)+'%',s.pnl_median>0],
+        ['PnL p5 (bad case)',fmt(s.pnl_p5,1)+'%',s.pnl_p5>0],
+        ['Median max DD',pct(s.maxdd_median),null],
+        ['Worst-tail DD (p5)',pct(s.maxdd_p5),null],
+        ['Paths profitable',pct(s.pct_profitable),s.pct_profitable>0.5],
+        ['Median vs SPY',s.excess_median!=null?(s.excess_median>0?'+':'')+fmt(s.excess_median,1)+'%':'–',s.excess_median>0],
+        ['Paths beating SPY',s.pct_beat_spy!=null?pct(s.pct_beat_spy):'–',s.pct_beat_spy>0.5]
+      ].map(([k,v,g])=>`<div class="metric"><div class="v ${g===null?'':(g?'pos':'neg')}">${v}</div><div class="k">${k}</div></div>`).join('');
+      const t=(j.result.results[0]||{}).trades;
+      if(t&&t.length){$('#ppTrades').style.display='block';$('#ppTradesBody').innerHTML=tradeTable(t);}
+    }
+  },700);
+}
+
+/* Past runs tab */
+async function rRuns(){
+  let[runs,bts]=await Promise.all([api('GET','/api/runs'),api('GET','/api/backtests')]);
+  if(PROJECT){
+    bts=bts.filter(b=>b.config===PROJECT);
+    const sym=(CONFIG&&CONFIG.symbol)||'';
+    runs=runs.filter(r=>r.startsWith(sym+'_'));
+  }
+  $('#main').innerHTML=`<div class="panel"><h2>Past optimization runs</h2>
+    ${runs.length?runs.map(r=>`<div class="flex" style="padding:6px 0;border-bottom:1px solid var(--border)"><code>${r}</code><div class="spacer"></div><button class="ghost" onclick="viewRun('${r}')">View</button></div>`).join(''):'<p class="muted">none yet</p>'}
+    </div>
+    <div class="panel"><h2>Past backtests</h2>
+    ${bts.length?`<table><tr><th>When</th><th>Config</th><th>Params</th><th>Equity</th><th>Sharpe</th><th>PSR</th><th>Max DD</th><th>α vs SPY</th><th></th></tr>
+      ${bts.map(b=>{const pj=JSON.stringify(b.params);return `<tr><td class="muted" style="white-space:nowrap">${b.ts}</td><td>${b.config}</td>
+      <td class="trunc" title='${pj.replace(/'/g,"&#39;")}'><code>${pj}</code></td>
+      <td style="white-space:nowrap">${b.beg_equity!=null?'$'+Math.round(b.beg_equity).toLocaleString()+' → <b class="'+(b.end_equity>=b.beg_equity?'pos':'neg')+'">$'+Math.round(b.end_equity).toLocaleString()+'</b>':'–'}</td>
+      <td class="${b.sharpe>0?'pos':'neg'}">${fmt(b.sharpe)}</td><td>${pct(b.psr)}</td><td>${pct(b.max_drawdown)}</td>
+      <td class="${b.alpha_spy>0?'pos':'neg'}">${b.alpha_spy!=null?(b.alpha_spy*100).toFixed(1)+'%/yr':'–'}</td>
+      <td><button class="ghost" onclick="viewBT('${b.id}')">View</button></td></tr>`}).join('')}</table>`:'<p class="muted">none yet</p>'}
+    </div><div id="runView"></div>`;
+}
+async function viewBT(id){
+  let r;try{r=await api('GET','/api/backtests/'+id)}catch(e){return toast('✗ '+e.message)}
+  const m=r.metrics;
+  const cards=[['Sharpe',fmt(m.sharpe)],['Prob. Sharpe',pct(m.psr)],['Sortino',fmt(m.sortino)],['Max Drawdown',pct(m.max_drawdown)],
+    ['PnL %',fmt(m.pnl_pct,2)+'%'],['Win rate',pct(m.win_rate)],['Orders',m.total_orders],['Positions',m.total_positions]];
+  $('#runView').innerHTML=`<div class="panel"><h2>Backtest ${r.ts} — ${r.config} <code>${JSON.stringify(r.params)}</code></h2>
+    <div class="metrics" style="margin-bottom:14px">${cards.map(([k,v])=>`<div class="metric"><div class="v">${v}</div><div class="k">${k}</div></div>`).join('')}</div>
+    <div id="histAdv" style="margin-bottom:14px"></div>
+    <canvas id="histChart" height="80"></canvas>
+    <h2 style="margin-top:18px">Trade log</h2><div>${tradeTable(r.trades)}</div></div>`;
+  renderAdvStats(id,'#histAdv');
+  if(CHART)CHART.destroy();
+  CHART=new Chart($('#histChart'),{type:'line',data:{labels:r.equity_curve.map(p=>new Date(p[0]).toISOString().slice(0,10)),
+    datasets:[{data:r.equity_curve.map(p=>p[1]),borderColor:'#7c7ce8',borderWidth:1.5,pointRadius:0,fill:{target:'origin',above:'rgba(91,91,214,.14)'}}]},
+    options:{animation:false,plugins:{legend:{display:false}},scales:{x:{ticks:{maxTicksLimit:10,color:'#7e808a'},grid:{color:'#232428'}},y:{ticks:{color:'#7e808a'},grid:{color:'#232428'}}}}});
+  addBenchmark(id,CHART);
+  $('#runView').scrollIntoView({behavior:'smooth'});
+}
+async function viewRun(id){
+  let r;try{r=await api('GET','/api/runs/'+id)}catch(e){return toast('✗ '+e.message)}
+  const s=r.summary||{};
+  if(r.type==='walkforward'){renderWFResult(r,'#runView');$('#runView').scrollIntoView({behavior:'smooth'});return}
+  if(!r.candidates)return $('#runView').innerHTML=`<div class="panel"><h2>${id}</h2><pre style="white-space:pre-wrap;font-family:var(--mono);font-size:12px">${JSON.stringify(r,null,2).slice(0,4000)}</pre></div>`;
+  $('#runView').innerHTML=`<div class="panel"><h2>${id}</h2>
+    <p>Recommended: <code>${JSON.stringify(s.recommended_params)}</code> — median OOS ${fmt(s.recommended_median_oos)}, ${pct(s.recommended_pct_positive)} positive</p>
+    <table><tr><th>Params</th><th>Median OOS</th><th>IQR</th><th>% positive</th></tr>
+    ${r.candidates.map(c=>`<tr><td><code>${JSON.stringify(c.params)}</code></td><td>${fmt(c.median)}</td><td>${fmt(c.iqr)}</td><td>${pct(c.pct_positive)}</td></tr>`).join('')}</table>
+    <div id="runHeat" style="margin-top:18px"></div></div>`;
+  if(r.trials&&r.trials.length)renderHeatmap('#runHeat',r.trials,'run');
+}
+
+/* Logs tab */
+let LOGPOLL=null;
+async function rLogs(){
+  clearInterval(LOGPOLL);
+  $('#main').innerHTML=`<div class="panel"><div class="flex"><h2 style="margin:0">Logs</h2>
+    <span class="muted">errors include full tracebacks · auto-refreshing</span><div class="spacer"></div>
+    <label style="margin:0"><input type="checkbox" id="logErrOnly" style="width:auto" onchange="renderLogs()"> errors only</label></div>
+    <div id="logList" style="font-family:var(--mono);font-size:11.5px;max-height:75vh;overflow-y:auto;margin-top:10px"></div></div>`;
+  window._LOGS=[];let since=0;
+  const pull=async()=>{const r=await api('GET','/api/logs?since='+since);since=r.next;
+    if(r.items.length){window._LOGS.push(...r.items);renderLogs()}};
+  await pull();LOGPOLL=setInterval(()=>{if(TAB==='logs')pull();else clearInterval(LOGPOLL)},2000);
+}
+function renderLogs(){
+  const eo=$('#logErrOnly')&&$('#logErrOnly').checked;
+  const items=window._LOGS.filter(l=>!eo||l.level==='error');
+  $('#logList').innerHTML=items.length?items.slice().reverse().map(l=>
+    `<div style="padding:6px 4px;border-bottom:1px solid var(--border)">
+      <span class="muted">${l.ts}</span> <span class="${l.level==='error'?'neg':'pos'}">${l.level}</span>
+      <span class="badge">${l.source}</span>
+      <pre style="margin:4px 0 0;white-space:pre-wrap">${l.msg.replace(/</g,'&lt;')}</pre></div>`).join('')
+    :'<p class="muted">no log entries yet</p>';
+}
+
+/* Assistant panel */
+let AGENT_SID=null, AGENT_POLL=null, AGENT_SINCE=0;
+function toggleAgent(){$('#agentPanel').classList.toggle('open');if(!AGENT_SID)newAgentSession();loadLLMSettings()}
+async function newAgentSession(){
+  const r=await api('POST','/api/agent/session');AGENT_SID=r.session_id;AGENT_SINCE=0;
+  $('#agentMsgs').innerHTML='<div class="amsg assistant">New chat. What are we working on?</div>';
+}
+async function loadLLMSettings(){
+  const st=await api('GET','/api/settings');
+  $('#llmProv').value=st.llm_provider;$('#llmModel').value=st.llm_model;
+  const f=$('#provFields');
+  const render_=()=>{const p=$('#llmProv').value;
+    f.innerHTML=p==='anthropic'?`<div><label>Anthropic API key ${st.anthropic_key_set?'(saved)':''}</label><input id="llmKey" type="password" placeholder="sk-ant-…"></div>`
+      :p==='openrouter'?`<div><label>OpenRouter API key ${st.openrouter_key_set?'(saved)':''}</label><input id="llmKey" type="password" placeholder="sk-or-…"></div>`
+      :`<div><label>Base URL</label><input id="llmBase" value="${st.local_base_url}"></div><div><label>API key (optional)</label><input id="llmKey" type="password"></div>`;};
+  $('#llmProv').onchange=render_;render_();
+}
+async function saveLLM(){
+  const p=$('#llmProv').value,body={llm_provider:p,llm_model:$('#llmModel').value||null};
+  const k=$('#llmKey')&&$('#llmKey').value.trim();
+  if(p==='anthropic'&&k)body.anthropic_key=k;
+  if(p==='openrouter'&&k)body.openrouter_key=k;
+  if(p==='local'){body.local_base_url=$('#llmBase').value;if(k)body.local_key=k;}
+  await api('PUT','/api/settings',body);toast('Assistant settings saved');
+}
+function addAmsg(role,text){
+  const d=document.createElement('div');d.className='amsg '+role;d.textContent=text;
+  $('#agentMsgs').appendChild(d);$('#agentMsgs').scrollTop=1e9;
+}
+async function sendAgent(){
+  const t=$('#agentText').value.trim();if(!t||!AGENT_SID)return;
+  $('#agentText').value='';
+  try{await api('POST','/api/agent/'+AGENT_SID,{text:t,context:uiContext()})}catch(e){return toast('✗ '+e.message)}
+  $('#agentBusy').style.display='inline-block';
+  clearInterval(AGENT_POLL);
+  AGENT_POLL=setInterval(async()=>{
+    const r=await api('GET',`/api/agent/${AGENT_SID}?since=${AGENT_SINCE}`);AGENT_SINCE=r.next;
+    for(const m of r.display)addAmsg(m.role,m.text);
+    if(!r.busy){clearInterval(AGENT_POLL);$('#agentBusy').style.display='none';}
+  },700);
+}
+
+nav();api('GET','/api/settings').then(s=>{SETTINGS=s}).catch(()=>{}).then(()=>loadConfigs()).then(render);
+
+// update check: poll /api/version (cached server-side) and show a banner when a newer commit exists upstream
+async function checkUpdate(){
+  try{
+    const v=await api('GET','/api/version');
+    const b=$('#updateBanner');
+    if(v.behind){
+      b.textContent='⬆ Update available';
+      b.href='https://github.com/'+v.repo+'/commits/'+v.branch;
+      b.classList.add('show');
+    }else{
+      b.classList.remove('show');
+    }
+  }catch(e){/* offline or no git — stay silent */}
+}
+checkUpdate();setInterval(checkUpdate,1800000);
+</script>
+</body>
+</html>

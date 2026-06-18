@@ -1,0 +1,33 @@
+services:
+  web:
+    build: .
+    command: qpipe serve --host 0.0.0.0
+    ports:
+      - "8000:8000"
+    volumes: &vols
+      - ./catalog:/app/catalog        # market data (parquet)
+      - ./configs:/app/configs        # run configs (edited via UI)
+      - ./runs:/app/runs              # optimization results + backtest history
+      - ./data:/app/data              # membership calendars etc.
+      - ./qpipe/strategies:/app/qpipe/strategies   # strategy code (edited via UI)
+      - settings:/root                # ~/.qpipe.json (API keys) persists
+    environment:
+      - ALPACA_API_KEY=${ALPACA_API_KEY:-}
+      - ALPACA_SECRET_KEY=${ALPACA_SECRET_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    restart: unless-stopped
+
+  mcp:
+    build: .
+    command: qpipe mcp --host 0.0.0.0
+    ports:
+      - "8765:8765"
+    volumes: *vols
+    environment:
+      - ALPACA_API_KEY=${ALPACA_API_KEY:-}
+      - ALPACA_SECRET_KEY=${ALPACA_SECRET_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    restart: unless-stopped
+
+volumes:
+  settings:

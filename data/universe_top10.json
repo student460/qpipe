@@ -1,0 +1,12 @@
+[
+  {"from": "2016-01-01", "symbols": ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "XOM", "JNJ", "GE", "WFC", "JPM"]},
+  {"from": "2017-01-01", "symbols": ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "JNJ", "XOM", "JPM", "BAC", "WFC"]},
+  {"from": "2018-01-01", "symbols": ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "JNJ", "JPM", "XOM", "V", "UNH"]},
+  {"from": "2019-01-01", "symbols": ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "JNJ", "JPM", "V", "PG", "XOM"]},
+  {"from": "2020-01-01", "symbols": ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "V", "JNJ", "WMT", "JPM", "PG"]},
+  {"from": "2021-01-01", "symbols": ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "META", "NVDA", "V", "JPM", "JNJ"]},
+  {"from": "2022-01-01", "symbols": ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "UNH", "JNJ", "NVDA", "XOM", "V"]},
+  {"from": "2023-01-01", "symbols": ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "LLY", "V", "UNH"]},
+  {"from": "2024-01-01", "symbols": ["AAPL", "MSFT", "NVDA", "GOOGL", "AMZN", "META", "LLY", "AVGO", "TSLA", "JPM"]},
+  {"from": "2025-01-01", "symbols": ["NVDA", "MSFT", "AAPL", "GOOGL", "AMZN", "META", "AVGO", "TSLA", "LLY", "JPM"]}
+]

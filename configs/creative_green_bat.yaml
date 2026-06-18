@@ -1,0 +1,81 @@
+# CreativeGreenBat — SPY Top-10 Market-Cap Filter → Top-N Momentum Rotation
+#
+# At each rebalance:
+#   1. Rank the full universe by proxy market cap (shares_outstanding × close).
+#   2. Keep the top `top_mcap_count` names (default 10).
+#   3. Score those 10 by composite multi-factor momentum.
+#   4. Hold the top `num_positions` (default 2), equal-weight.
+#
+# SURVIVORSHIP NOTE: `shares_outstanding` comes from instrument metadata baked in
+# at ingest time. Prices are point-in-time; share counts are NOT — a full PIT
+# share-count file would eliminate the residual bias. Results will still be
+# moderately optimistic (though substantially less so than a fixed hand-picked list).
+# Use sp10_pit with a membership_file for a fully bias-free run.
+
+strategy: qpipe.strategies.creative_green_bat:CreativeGreenBat
+config_class: qpipe.strategies.creative_green_bat:CreativeGreenBatConfig
+
+# AAPL drives the rebalance clock and is also a tradeable universe member.
+symbol: AAPL
+venue: XNAS
+bar_spec: 1-DAY-LAST
+account_type: CASH
+fees: none
+
+# Union of current mega-cap names to subscribe (AAPL is the primary above).
+# Extend this list to widen the pool the market-cap filter draws from.
+universe: [MSFT, NVDA, GOOGL, AMZN, META, AVGO, TSLA, BRK.B, JPM, LLY]
+
+# ════════════════════════════════════════════════════════════════════════════
+# FILTER PARAMS  ← all knobs in one place; also wired into the Optuna space
+# ════════════════════════════════════════════════════════════════════════════
+fixed:
+  # ── Universe filter ───────────────────────────────────────────────────────
+  top_mcap_count: 10          # keep this many stocks by market cap before scoring
+  num_positions: 2            # hold this many top-momentum stocks from those 10
+
+  # ── Rebalance schedule ────────────────────────────────────────────────────
+  rebalance_frequency: weekly # "weekly" (Monday) | "monthly" (first bar of month)
+
+  # ── Momentum lookback windows (trading days) ──────────────────────────────
+  week_momentum: 5
+  short_momentum: 21
+  medium_momentum: 63
+  long_momentum: 126
+  trend_momentum: 252         # also sets minimum history required to score a stock
+
+  # ── Composite-score weights ───────────────────────────────────────────────
+  # trend_weight is derived automatically: max(0, 1 - week - short - medium - long)
+  week_weight: 0.0
+  short_weight: 0.2
+  medium_weight: 0.2
+  long_weight: 0.3
+
+  # ── Volume-confirmation factor ────────────────────────────────────────────
+  volume_lookback: 21
+  volume_min: 0.8
+  volume_max: 1.2
+
+# ════════════════════════════════════════════════════════════════════════════
+# OPTUNA SEARCH SPACE  — mirrors the filter params section above
+# ════════════════════════════════════════════════════════════════════════════
+space:
+  # ── Universe filter ───────────────────────────────────────────────────────
+  top_mcap_count: {type: int,   low: 5,   high: 10}
+  num_positions:  {type: int,   low: 1,   high: 5}
+
+  # ── Composite-score weights ───────────────────────────────────────────────
+  week_weight:    {type: float, low: 0.0, high: 0.4, step: 0.05}
+  short_weight:   {type: float, low: 0.0, high: 0.4, step: 0.05}
+  medium_weight:  {type: float, low: 0.0, high: 0.4, step: 0.05}
+  long_weight:    {type: float, low: 0.0, high: 0.5, step: 0.05}
+
+  # ── Volume-confirmation bounds ────────────────────────────────────────────
+  volume_min:     {type: float, low: 0.5, high: 1.0, step: 0.1}
+  volume_max:     {type: float, low: 1.0, high: 1.5, step: 0.1}
+
+constraints:
+  - "week_weight + short_weight + medium_weight + long_weight <= 1.0"
+  - "num_positions <= top_mcap_count"   # can't hold more than we filter to
+
+objective: sharpe

@@ -1,0 +1,25 @@
+strategy: qpipe.strategies.etf_rotation:EtfRotation
+config_class: qpipe.strategies.etf_rotation:EtfRotationConfig
+symbol: SPY
+venue: XNAS
+bar_spec: 1-DAY-LAST
+account_type: MARGIN
+fees: none
+universe: [QQQ, IWM, TLT, GLD, VNQ, EFA, EEM, VTI, VOO, IBIT]
+fixed:
+  rebalance_frequency: weekly
+  week_momentum: 5
+  short_momentum: 21
+  medium_momentum: 63
+  long_momentum: 126
+  trend_momentum: 252
+  volume_lookback: 21
+space:
+  num_positions: {type: int, low: 2, high: 8}
+  week_weight: {type: float, low: 0.05, high: 1, step: 0.01}
+  short_weight: {type: float, low: 0.1, high: 1, step: 0.01}
+  medium_weight: {type: float, low: 0.4, high: 1, step: 0.01}
+  long_weight: {type: float, low: 0.45, high: 1, step: 0.01}
+constraints:
+  - "week_weight + short_weight + medium_weight + long_weight <= 1.0"
+objective: sharpe

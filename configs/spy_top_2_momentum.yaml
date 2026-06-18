@@ -1,0 +1,15 @@
+strategy: qpipe.strategies.sma_cross:SMACross
+config_class: qpipe.strategies.sma_cross:SMACrossConfig
+symbol: SPY
+venue: XNAS
+bar_spec: 1-DAY-LAST
+account_type: MARGIN
+fees: none
+fixed:
+  trade_size: 100
+space:
+  fast_period: {type: int, low: 5, high: 50}
+  slow_period: {type: int, low: 20, high: 200}
+constraints:
+  - "fast_period < slow_period"
+objective: sharpe
