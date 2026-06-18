@@ -40,7 +40,7 @@ def get_logs(since: int = 0):
 # GitHub API (unauthenticated limit is 60 req/hr). All failures degrade to
 # "up to date" so the UI never blocks on network issues.
 
-GITHUB_REPO = os.environ.get("QPIPE_GITHUB_REPO", "student640/qpipe")
+GITHUB_REPO = os.environ.get("QPIPE_GITHUB_REPO", "student460/qpipe")
 GITHUB_BRANCH = os.environ.get("QPIPE_GITHUB_BRANCH", "main")
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _VERSION_CACHE: dict = {"t": 0.0, "data": None}
@@ -513,12 +513,20 @@ class WalkForwardBody(BaseModel):
     metric_filter: str = ""    # e.g. "sharpe > 1 and psr > 0.6 and alpha > 0"
 
 
+_PER_BT_CACHE: dict[str, float] = {}  # (config|bar_type|is_months|warmup|balance) -> sec/backtest
+
+
 @app.post("/api/walkforward/preview")
 def wf_preview(body: WalkForwardBody):
-    """Combo count + segment count before launching."""
+    """Combo + segment count (and a cached time estimate) before launching.
+
+    Always returns 200 with the cheap counts. The per-backtest cost is measured
+    at most once per (config, IS window, warm-up, balance) and cached, so the
+    preview stays responsive and never re-runs backtests on every keystroke —
+    repeatedly doing so is what made this request hang and fail to load.
+    """
     from qpipe.config import RunConfig, ParamSpec
     from qpipe.optimize.walkforward import grid_combos
-    from qpipe.backtest.runner import data_range
 
     cfg = RunConfig.from_yaml(_config_path(body.config))
     if body.space:
@@ -527,37 +535,50 @@ def wf_preview(body: WalkForwardBody):
         n_combos = len(grid_combos(cfg))
     except ValueError as e:
         raise HTTPException(400, str(e))
-    d0, d1 = data_range(STATE["catalog"], cfg.bar_type_str)
-    span_months = max((d1 - d0).days / 30.44 - body.warmup_days / 30.44, 0)
+
+    # span / segment count — degrade gracefully if the catalog has no bars yet
+    d0 = None
+    span_months = 0.0
+    try:
+        from qpipe.backtest.runner import data_range
+        d0, d1 = data_range(STATE["catalog"], cfg.bar_type_str)
+        span_months = max((d1 - d0).days / 30.44 - body.warmup_days / 30.44, 0)
+    except Exception as e:  # noqa: BLE001
+        log_exc("walkforward preview: data_range", e)
     step = body.step_months or body.oos_months
-    n_segments = max(int((span_months - body.is_months - body.oos_months) / step) + 1, 0)
+    n_segments = (max(int((span_months - body.is_months - body.oos_months) / step) + 1, 0)
+                  if span_months and step else 0)
     total = n_combos * n_segments
 
-    # measure real per-backtest cost: time 2 sample combos on the first IS window
+    # per-backtest cost: measured once on the first IS window, then cached.
     est_seconds = None
     per_bt_ms = None
-    if total and n_segments:
+    key = f"{body.config}|{cfg.bar_type_str}|{body.is_months}|{body.warmup_days}|{int(body.balance)}"
+    per_bt = _PER_BT_CACHE.get(key)
+    if per_bt is None and total and d0 is not None:
         try:
             import time as _t
             from qpipe.optimize.walkforward import grid_combos as _gc
             from qpipe.backtest.runner import run_backtest
-            combos = _gc(cfg)
-            samples = [combos[0], combos[len(combos) // 2]][: max(1, min(2, len(combos)))]
+            sample = _gc(cfg)[0]
             is_s = d0 + pd.Timedelta(days=body.warmup_days)
             is_e = is_s + pd.DateOffset(months=body.is_months)
-            # warm-up run first: catalog loading is a one-time cost per worker,
+            # warm-up run first: catalog loading is a one-time per-worker cost,
             # not a per-backtest cost — timing it would inflate the estimate ~100x
-            run_backtest(cfg, STATE["catalog"], samples[0], is_s, is_e,
+            run_backtest(cfg, STATE["catalog"], sample, is_s, is_e,
                          balance=body.balance, warmup_days=body.warmup_days)
             t0 = _t.perf_counter()
-            for p in samples:
-                run_backtest(cfg, STATE["catalog"], p, is_s, is_e,
-                             balance=body.balance, warmup_days=body.warmup_days)
-            per_bt = (_t.perf_counter() - t0) / len(samples)
-            per_bt_ms = round(per_bt * 1000, 1)
+            run_backtest(cfg, STATE["catalog"], sample, is_s, is_e,
+                         balance=body.balance, warmup_days=body.warmup_days)
+            per_bt = _t.perf_counter() - t0
+            _PER_BT_CACHE[key] = per_bt
+        except Exception as e:  # noqa: BLE001
+            log_exc("walkforward preview: timing", e)
+            per_bt = None
+    if per_bt is not None:
+        per_bt_ms = round(per_bt * 1000, 1)
+        if total:
             est_seconds = round(total * per_bt / max(body.jobs, 1) * 1.15)  # 15% pool overhead
-        except Exception:  # noqa: BLE001
-            pass
     # warm-up adequacy: largest bar-count-looking value among fixed params / space highs
     warmup_warning = None
     lookbacks = [v for v in cfg.fixed.values() if isinstance(v, (int, float)) and 60 <= v <= 2000]

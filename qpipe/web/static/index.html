@@ -710,13 +710,23 @@ function drawLeader(){
   const k=$('#wfRank')?$('#wfRank').value:'value';
   const pass=wfFilterFn();
   const valid=WFTRIALS.filter(t=>t[k]!=null&&t.positions>0&&pass(t));
-  const sorted=valid.sort((a,b)=>(b[k]??-1e9)-(a[k]??-1e9)).slice(0,12);
-  const cap=$('#wfLeader').previousElementSibling;
+  valid.sort((a,b)=>(b[k]??-1e9)-(a[k]??-1e9));
+  // Collapse functionally-identical results. The objective surface is often very
+  // flat (many param combos pick the same stocks -> identical backtest), which
+  // otherwise fills the board with rows that look like duplicates. Group by the
+  // full metric signature and show how many combos tie at that result.
+  const groups=[],seen=new Map();
+  for(const t of valid){
+    const sig=[t.value,t.sharpe,t.alpha,t.max_drawdown].map(v=>v==null?'·':(+v).toFixed(4)).join('|');
+    if(seen.has(sig))seen.get(sig).n++;
+    else{const g={t,n:1};seen.set(sig,g);groups.push(g);}
+  }
+  const sorted=groups.slice(0,12);
   $('#wfLeader').innerHTML='<tr><th>#</th><th>Params</th><th>Seg</th><th>'+k.replaceAll('_',' ')+'</th><th>Sharpe</th><th>α/SPY</th><th>DD</th></tr>'+
-    (sorted.length?sorted.map((t,i)=>`<tr><td class="muted">${i+1}</td><td class="trunc" title='${JSON.stringify(t.params)}'><code>${JSON.stringify(t.params)}</code></td>
+    (sorted.length?sorted.map((g,i)=>{const t=g.t;return `<tr><td class="muted">${i+1}</td><td class="trunc" title='${JSON.stringify(t.params)}'><code>${JSON.stringify(t.params)}</code>${g.n>1?` <span class="badge" title="${g.n} parameter combos produced this identical result — the objective is flat across them">×${g.n} tie</span>`:''}</td>
       <td class="muted">${t.segment}</td><td class="${t[k]>0?'pos':'neg'}"><b>${fmt(t[k])}</b></td>
       <td>${fmt(t.sharpe,2)}</td><td class="${t.alpha>0?'pos':'neg'}">${t.alpha!=null?(t.alpha*100).toFixed(1)+'%':'–'}</td>
-      <td>${pct(t.max_drawdown)}</td></tr>`).join('')
+      <td>${pct(t.max_drawdown)}</td></tr>`}).join('')
     :'<tr><td colspan=7 class="muted">no backtests pass the constraint yet</td></tr>');
 }
 function drawFeed(){
