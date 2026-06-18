@@ -41,7 +41,7 @@ def get_logs(since: int = 0):
 # "up to date" so the UI never blocks on network issues.
 
 GITHUB_REPO = os.environ.get("QPIPE_GITHUB_REPO", "student460/qpipe")
-GITHUB_BRANCH = os.environ.get("QPIPE_GITHUB_BRANCH", "main")
+GITHUB_BRANCH = os.environ.get("QPIPE_GITHUB_BRANCH", "master")
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _VERSION_CACHE: dict = {"t": 0.0, "data": None}
 
